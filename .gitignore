@@ -1,0 +1,17 @@
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+build
+/output*.png
+.qglviewer.xml
+data
+.vscode
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+PolygonCenterLine_clamping_doc.pdf
