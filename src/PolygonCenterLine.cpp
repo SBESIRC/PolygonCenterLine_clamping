@@ -2,9 +2,10 @@
 //
 
 #define PolygonCenterLine_Implementation
-#include "PolygonCenterLine.h"
-
 #include <iostream>
+#include "PolygonCenterLine.h"
+#include "PolygonCenterLineTest.h"
+
 using namespace std;
 
 int main(int argc, char *argv[]) {
@@ -13,7 +14,8 @@ int main(int argc, char *argv[]) {
 		cout<< argc << endl;
 		return 1;
 	}
-	CenterLine_ns::PolygonCenterLine centerline(argv[1]);
+	//CenterLine::PolygonCenterLine centerline(argv[1]);
+	PolygonCenterLineTest centerline(argv[1]);
 	//double interval = 1;
 	//if(argc >= 3){
 	//	stringstream s_in(argv[2]);

@@ -1,3 +1,11 @@
+## Update (2021.06.27)
+
+- [x] 采用更简洁方式改写convertKernel;
+- [x] 重构接口，将Viewer与库隔离;
+- [x] 添加“需定义`PolygonCenterLine_Implementation`宏”的提示;
+- [x] 将`PolygonCenterlineSolver`中较长的函数定义放在模板类外;
+- [ ] 继续Debug
+
 ## Progress
 
 ![output 0](README.assets/output 0.png)
