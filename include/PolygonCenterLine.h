@@ -57,10 +57,11 @@ namespace CenterLine {
         const std::vector<Segment_2> &sub_centerline() const { return _sub_segments; }
         bool calcCenterLine(const Polygon_with_holes_2 &space);
     };
+} // namespace CenterLine
+#endif // POLYGON_CENTERLINE_H
 
 #ifdef PolygonCenterLine_Implementation
-#ifndef PolygonCenterLine_Implemented
-#define PolygonCenterLine_Implemented
+namespace CenterLine {
     bool PolygonCenterLine::calcCenterLine(const Polygon_with_holes_2 &space)
     {
         init();
@@ -110,7 +111,6 @@ namespace CenterLine {
         }
     } // void PolygonCenterLine::showCenterLine(double interval)
 
-#endif // PolygonCenterLine_Implemented
-#endif // PolygonCenterLine_Implementation
 } // namespace CenterLine
-#endif // POLYGON_CENTERLINE_H
+#undef PolygonCenterLine_Implementation
+#endif // PolygonCenterLine_Implementation

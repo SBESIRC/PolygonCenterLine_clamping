@@ -12,7 +12,7 @@ namespace KernelConverter {
     using Fixed_kernel = CGAL::Simple_cartesian<Fixed_nt>;
     using Simple_kernel = CGAL::Simple_cartesian<double>;
 
-    // Precision=-1琛ㄧず浣跨敤榛樿绮惧害
+    // Precision=-1表示使用默认精度
     template <typename K, typename NewK, int Precision = -1>
     struct NumberConverter : public std::unary_function<K, NewK> {
         typename NewK operator()(const typename K &a) const

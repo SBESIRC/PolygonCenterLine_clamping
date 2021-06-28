@@ -23,5 +23,5 @@ target_link_libraries(PolygonCenterLine PUBLIC CGAL::CGAL PUBLIC CGAL::CGAL_Qt5)
 # only for testing
 add_executable (PolygonCenterLineTest "test/PolygonCenterLineTest.cpp"  ${test_headers})
 target_include_directories(PolygonCenterLineTest PRIVATE test)
+#target_link_libraries(PolygonCenterLineTest PUBLIC CGAL::CGAL PUBLIC CGAL::CGAL_Qt5)
 target_link_libraries(PolygonCenterLineTest PUBLIC PolygonCenterLine)
-

@@ -1,5 +1,6 @@
 #include <iostream>
 
+#define PolygonCenterLine_Implementation
 #include "PolygonCenterLine.h"
 #include "PolygonCenterLineTest.h"
 
