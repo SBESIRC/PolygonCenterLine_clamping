@@ -1,6 +1,6 @@
 /*****************************************************************
 To use this, you should define "PolygonCenterLine_Implementation"
-in exactly one source file.
+before including this file in exactly one source file.
 ****************************************************************/
 #ifndef POLYGON_CENTERLINE_H
 #define POLYGON_CENTERLINE_H
@@ -20,8 +20,8 @@ in exactly one source file.
 #include "CenterLineSolver.h"
 
 namespace CenterLine{
-template<typename K = CGAL::Exact_predicates_exact_constructions_kernel>
 class PolygonCenterLine {
+    using K = CGAL::Exact_predicates_exact_constructions_kernel;
     //https://github.com/CGAL/cgal/issues/1873
     using Point_2 = typename K::Point_2;
     using Polygon_2 = CGAL::Polygon_2<K>;
@@ -56,9 +56,9 @@ public:
 };
 
 #ifdef PolygonCenterLine_Implementation
-
-template<typename K>
-bool PolygonCenterLine<K>::calcCenterLine(const Polygon_with_holes_2 &space){
+#ifndef PolygonCenterLine_Implemented
+#define PolygonCenterLine_Implemented
+bool PolygonCenterLine::calcCenterLine(const Polygon_with_holes_2 &space){
     init();
     
     CGAL::Polygon_with_holes_2<InnerK> new_space = kernel_converter.convert(space);
@@ -103,6 +103,8 @@ bool PolygonCenterLine<K>::calcCenterLine(const Polygon_with_holes_2 &space){
         return false;
     }
 } // void PolygonCenterLine::showCenterLine(double interval)
+
+#endif // PolygonCenterLine_Implemented
 #endif // PolygonCenterLine_Implementation
 } // namespace CenterLine
 #endif // POLYGON_CENTERLINE_H

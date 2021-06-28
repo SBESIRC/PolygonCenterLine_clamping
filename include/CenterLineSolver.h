@@ -307,9 +307,9 @@ struct CenterLineSolver{
 	}
 };
 
-#ifdef PolygonCenterLine_Implementation
+// PolygonCenterLine_Implementation
 template<typename K, class Poly_with_holes, class Poly>
-bool CenterLineSolver<K, Poly_with_holes, Poly>::calc_interval_on_line(const Line_2 &bisector, const EdgeData &edge, Interval &interval, bool parallel){
+inline bool CenterLineSolver<K, Poly_with_holes, Poly>::calc_interval_on_line(const Line_2 &bisector, const EdgeData &edge, Interval &interval, bool parallel){
 	PointData *src = edge.src_point, *dest = edge.dest_point;
 	Line_2 corr_line = line_data_pool[edge.corr_line];
 	Vector_2 edge_vector = corr_line.to_vector(), bi_vector = bisector.to_vector();
@@ -363,7 +363,7 @@ bool CenterLineSolver<K, Poly_with_holes, Poly>::calc_interval_on_line(const Lin
 		auto x = CGAL::intersection(bisector, new_seg);
 		if(!x){
 			if(tmp_inner_product < 0){
-				swap(a, b), swap(src, dest);
+				std::swap(a, b); std::swap(src, dest);
 				is_endpoint = 2;
 			}
 			else is_endpoint = 1;
@@ -477,9 +477,8 @@ bool CenterLineSolver<K, Poly_with_holes, Poly>::calc_interval_on_line(const Lin
 	return true;
 }
 
-
 template<typename K, class Poly_with_holes, class Poly>
-void CenterLineSolver<K, Poly_with_holes, Poly>::append_collision_events(EdgeData *edge){
+inline void CenterLineSolver<K, Poly_with_holes, Poly>::append_collision_events(EdgeData *edge){
 	static int run_id = 0;
 	std::cout << "run_id=" << run_id++ << std::endl;
 	// 求出的bisector均沿着交点运动的方向(如果平行则沿着l0的方向)
@@ -565,7 +564,7 @@ void CenterLineSolver<K, Poly_with_holes, Poly>::append_collision_events(EdgeDat
 }
 
 template<typename K, class Poly_with_holes, class Poly>
-void CenterLineSolver<K, Poly_with_holes, Poly>::append_line_data(const Polygon_2 &poly, size_t &line_it){
+inline void CenterLineSolver<K, Poly_with_holes, Poly>::append_line_data(const Polygon_2 &poly, size_t &line_it){
 	std::vector<PointData*> tmp_point;
 	std::vector<EdgeData*> tmp_edge;
 	int len = poly.size();
@@ -608,7 +607,7 @@ void CenterLineSolver<K, Poly_with_holes, Poly>::append_line_data(const Polygon_
 }
 
 template<typename K, class Poly_with_holes, class Poly>
-void CenterLineSolver<K, Poly_with_holes, Poly>::CutHalfEdge(EdgeData *base, EdgeData *edge, bool type, Point_2 location, std::vector<PointData*> &point_pool, std::vector<EdgeData*> &edge_pool){
+inline void CenterLineSolver<K, Poly_with_holes, Poly>::CutHalfEdge(EdgeData *base, EdgeData *edge, bool type, Point_2 location, std::vector<PointData*> &point_pool, std::vector<EdgeData*> &edge_pool){
 	base->del = edge->del = true;
 	Line_2 base_line = line_data_pool[base->corr_line], edge_line = line_data_pool[edge->corr_line];
 	Vector_2 base_v = base_line.to_vector(), edge_v = edge_line.to_vector();
@@ -723,7 +722,7 @@ void CenterLineSolver<K, Poly_with_holes, Poly>::CutHalfEdge(EdgeData *base, Edg
 	}
 
 template<typename K, class Poly_with_holes, class Poly>
-void CenterLineSolver<K, Poly_with_holes, Poly>::CutHalfPoint(EdgeData *prev, EdgeData *next, Point_2 location, std::vector<PointData*> &point_pool, std::vector<EdgeData*> &edge_pool){
+inline void CenterLineSolver<K, Poly_with_holes, Poly>::CutHalfPoint(EdgeData *prev, EdgeData *next, Point_2 location, std::vector<PointData*> &point_pool, std::vector<EdgeData*> &edge_pool){
 	if(prev == next){
 		prev->dest_point->end_time = next->src_point->end_time = this->cur_time;
 		prev->dest_point->end_loc = next->src_point->end_loc = location;
@@ -781,7 +780,7 @@ void CenterLineSolver<K, Poly_with_holes, Poly>::CutHalfPoint(EdgeData *prev, Ed
 }
 
 template<typename K, class Poly_with_holes, class Poly>
-void CenterLineSolver<K, Poly_with_holes, Poly>::CutEdge(EdgeData *base, EdgeData *prev, EdgeData *next, Point_2 location, std::vector<PointData*> &point_pool, std::vector<EdgeData*> &edge_pool) {
+inline void CenterLineSolver<K, Poly_with_holes, Poly>::CutEdge(EdgeData *base, EdgeData *prev, EdgeData *next, Point_2 location, std::vector<PointData*> &point_pool, std::vector<EdgeData*> &edge_pool) {
 	std::cout << base->new_loc(line_loc) << std::endl;
 	std::cout << prev->new_loc(line_loc) << std::endl;
 	std::cout << next->new_loc(line_loc) << std::endl;
@@ -791,7 +790,7 @@ void CenterLineSolver<K, Poly_with_holes, Poly>::CutEdge(EdgeData *base, EdgeDat
 }
 
 template<typename K, class Poly_with_holes, class Poly>
-void CenterLineSolver<K, Poly_with_holes, Poly>::operator () (const Poly_with_holes& polygon){
+inline void CenterLineSolver<K, Poly_with_holes, Poly>::operator () (const Poly_with_holes& polygon){
 	size_t tot_edges = polygon.outer_boundary().size(); // the size of line_data_pool.
 	for(auto it = polygon.holes_begin();it != polygon.holes_end();++it) tot_edges += it->size();
 
@@ -895,7 +894,7 @@ void CenterLineSolver<K, Poly_with_holes, Poly>::operator () (const Poly_with_ho
 		}
 		else{
 			if(l0 > r0){
-				swap(seg0, seg1); swap(l0, r1); swap(l1, r0); swap(event_a, event_b);
+				std::swap(seg0, seg1); std::swap(l0, r1); std::swap(l1, r0); std::swap(event_a, event_b);
 			}
 			if(event_a->prev == event_b->next){
 				event_a->src_point->end_time = event_b->dest_point->end_time = event.time;
@@ -946,7 +945,6 @@ void CenterLineSolver<K, Poly_with_holes, Poly>::operator () (const Poly_with_ho
 		}
 		else this->sub_segments.emplace_back(it->start_loc, it->end_loc);
 	}
-	}
+}
 
-#endif //PolygonCenterLine_Implementation
 #endif // GET_CENTERLINE_H

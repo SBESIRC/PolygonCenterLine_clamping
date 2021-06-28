@@ -80,8 +80,8 @@ struct PolygonCenterLineTest{
         const char* argv[2]={"t2_viewer","\0"};
         QApplication app(argc, const_cast<char**>(argv));
 
-		PolygonCenterLine<K> centerline;
-        for(size_t space_id = 0;space_id < spaces.size();++space_id){
+		PolygonCenterLine centerline;
+        for(size_t space_id = 1;space_id < spaces.size();++space_id){
             Polygon_with_holes_2 &space = spaces[space_id];
 			points.clear();
 			segs.clear();

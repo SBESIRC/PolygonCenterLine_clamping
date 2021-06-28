@@ -1,11 +1,10 @@
 #pragma once
+#include <string>
 #include <CGAL/Qt/Basic_viewer_qt.h>
 //#include <CGAL/IO/Qt_widget.h>
 #ifdef CGAL_USE_BASIC_VIEWER
-
 #include <CGAL/Polygon_2.h>
 #include <CGAL/Random.h>
-#include <string>
 
 namespace CGAL
 {
