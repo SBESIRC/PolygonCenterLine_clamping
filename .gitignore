@@ -5,6 +5,7 @@ CMakeScripts
 Testing
 build
 /output*.png
+/*output*.jpg
 .qglviewer.xml
 data
 .vscode
