@@ -49,9 +49,21 @@ namespace KernelConverter {
         CGAL::Polygon_2<K> convert(const CGAL::Polygon_2<From> &poly)
         {
             std::vector<K::Point_2> tmp_pts;
+            K::Point_2 last_p, cur_p;
+            bool first = true;
             for (auto &point : poly) {
-                tmp_pts.emplace_back(operator()(point));
+                cur_p = operator()(point);
+                if (first)
+                    first = false;
+                else if(last_p == cur_p)
+                    continue;
+                tmp_pts.emplace_back(cur_p);
+                last_p = cur_p;
             }
+            if (*tmp_pts.begin() == *tmp_pts.rbegin())
+                tmp_pts.pop_back();
+            if (tmp_pts.size() < 3)
+                throw("polygon degenerated");
             return CGAL::Polygon_2<K>(tmp_pts.begin(), tmp_pts.end());
         }
         CGAL::Polygon_with_holes_2<K> convert(const CGAL::Polygon_with_holes_2<CGAL::Epeck> &poly)

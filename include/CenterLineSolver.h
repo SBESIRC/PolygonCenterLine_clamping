@@ -5,6 +5,7 @@
 #include <queue>
 #include <sstream>
 #include <unordered_map>
+#include <iostream>
 
 #include <CGAL/Partition_traits_2.h>
 #include <CGAL/Polygon_with_holes_2.h>
@@ -13,6 +14,7 @@
 #include <boost/optional/optional_io.hpp>
 
 namespace CenterLineSolver {
+    static bool is_debugging = false;
     struct PairHash {
         std::size_t operator()(const std::pair<int, int> &p) const
         {
@@ -52,8 +54,9 @@ namespace CenterLineSolver {
         std::vector<PointData *> point_data_pool;
         std::vector<EdgeData *> edge_data_pool;
         std::priority_queue<Event> events;
+        Point_2 top_right; // 右边界与上边界，用于判断交点是否落在区域外
         FT cur_time; // events最新pop出的事件的发生时间. 初始为0
-        bool is_debugging;
+        //bool is_debugging;
         std::unordered_map<std::pair<int, int>, Line_2, PairHash> bisector_map;
         // results
         std::vector<Segment_2> res_segments, sub_segments;
@@ -132,18 +135,39 @@ namespace CenterLineSolver {
             FT tmp_outer_product = outer_product(a, b);
             return (tmp_outer_product * tmp_outer_product < absolute_eps);
         }
-        FT calc_line_scale(const Line_2 &line)
+        static boost::optional<boost::variant<Point_2, Ray_2>> intersection(const Line_2 &line, const Ray_2 &ray, const Line_2 &bound){
+            Line_2 ray_line = ray.supporting_line();
+            auto x = CGAL::intersection(line, ray_line);
+            if(!x) return boost::none;
+            Line_2 *inter_line;
+            Point_2 *point;
+            if((inter_line = boost::get<Line_2>(&*x))) return ray;
+            point = boost::get<Point_2>(&*x);
+            FT point_loc = calc_loc_on_line(ray_line, *point);
+            FT side = (bound.a() * point->x() + bound.b() * point->y() + bound.c()) / calc_line_scale(bound);
+            if(is_debugging){
+                std::cout << ray << std::endl;
+                std::cout << "ray = " << ray.to_vector() << std::endl;
+                std::cout << "line = " << line.to_vector() << std::endl;
+                std::cout << "x = " << x << std::endl;
+                std::cout << "side = " << side << std::endl;
+                std::cout << point_loc << std::endl;
+            }
+            if(less(side, 0)) return boost::none;
+            return *point;
+        }
+        static FT calc_line_scale(const Line_2 &line)
         {
             return CGAL::sqrt(line.a() * line.a() + line.b() * line.b());
         }
         // 沿着line的方向递增
-        FT calc_loc_on_line(const Line_2 &line, const Point_2 &point)
+        static FT calc_loc_on_line(const Line_2 &line, const Point_2 &point)
         {
             // std::cout << line << std::endl << point << std::endl;
             return (line.b() * point.x() - line.a() * point.y()) / calc_line_scale(line);
         }
         // 在bisector上的位置区间(按先后顺序从先到后)
-        bool calc_interval_on_line(const Line_2 &bisector, const EdgeData &edge,
+        bool calc_interval_on_line(const Line_2 &bisector, const EdgeData &edge, const EdgeData &op_edge,
                                    Interval &interval, bool parallel = false);
         void append_collision_events(EdgeData *edge);
         void start_debug() { is_debugging = true; }
@@ -160,6 +184,7 @@ namespace CenterLineSolver {
         void CutEdge(EdgeData *base, EdgeData *prev, EdgeData *next, Point_2 location,
                      std::vector<PointData *> &point_pool,
                      std::vector<EdgeData *> &edge_pool);
+        bool in_box(Point_2 point){ return point.x() >= 0 && point.x() <= top_right.x() && point.y() >= 0 && point.y() <= top_right.y();}
         void operator()(const Poly_with_holes &polygon);
         CenterLineSolver() { is_debugging = false; }
     }; // CenterLineSolver
@@ -209,23 +234,29 @@ namespace CenterLineSolver {
             return Segment_2(src_point->new_loc(new_time),
                              dest_point->new_loc(new_time));
         }
-        Segment_2 new_loc(const std::vector<Line_2> &line_loc) const
+        Segment_2 new_loc(const std::vector<Line_2> &line_loc, const FT &new_time) const
         {
-            //std::cout << src_point->path() << std::endl;
-            //std::cout << dest_point->path() << std::endl;
-            //std::cout << line_loc[corr_line] << std::endl;
-            auto a = CGAL::intersection(line_loc[corr_line], src_point->path());
-            auto b = CGAL::intersection(line_loc[corr_line], dest_point->path());
+            if(is_debugging){
+                std::cout << src_point->path() << std::endl;
+                std::cout << dest_point->path() << std::endl;
+                std::cout << line_loc[corr_line] << std::endl;
+            }
+            auto a = CGAL::intersection(line_loc[corr_line], src_point->path().supporting_line());
+            auto b = CGAL::intersection(line_loc[corr_line], dest_point->path().supporting_line());
             // assert(a  && b);
             if (!a || !b) {
                 std::cerr << "no intersection :\n " << a << std::endl << b << std::endl;
-                exit(1);
+                throw("no intersection");
             }
             Point_2 *p = boost::get<Point_2>(&*a), *q = boost::get<Point_2>(&*b);
             if (!p || !q) {
-                std::cerr << "intersection not Point_2 :\n" << p << std::endl << q << std::endl;
-                exit(1);
+                std::cout << line_loc[corr_line].to_vector() << " " << line_loc[prev->corr_line].to_vector() << " "
+                            << line_loc[next->corr_line].to_vector() << std::endl;
+                std::cerr << "intersection not Point_2 :\n" << a << std::endl << b << std::endl;
+                throw("intersection not Point_2");
             }
+            if(new_time == src_point->start_time) p = &src_point->start_loc;
+            if(new_time == dest_point->start_time) q = &dest_point->start_loc;
             return Segment_2(*p, *q);
         }
     };
@@ -354,7 +385,7 @@ namespace CenterLineSolver {
 
     template <typename K, class Poly_with_holes, class Poly>
     inline bool CenterLineSolver<K, Poly_with_holes, Poly>::calc_interval_on_line(
-        const Line_2 &bisector, const EdgeData &edge, Interval &interval,
+        const Line_2 &bisector, const EdgeData &edge, const EdgeData &op_edge, Interval &interval,
         bool parallel)
     {
         PointData *src = edge.src_point, *dest = edge.dest_point;
@@ -371,22 +402,27 @@ namespace CenterLineSolver {
         Segment_2 *tmp_s = NULL;
         int is_endpoint = 0;
         interval.init();
-        std::cout << "bisector_v = " << bisector.to_vector() << std::endl;
-        auto a = CGAL::intersection(bisector, src->path());
-        auto b = CGAL::intersection(bisector, dest->path());
-        std::cout << tmp_inner_product << " " << tmp_outer_product << std::endl;
+        Ray_2 src_path = src->path(), dest_path = dest->path();
+        if(is_debugging){
+            std::cout << "bisector_v = " << bisector.to_vector() << std::endl;
+            std::cout << tmp_inner_product << " " << tmp_outer_product << std::endl;
+        }
         // parallel
         if (parallel) {
+            //auto a = CGAL::intersection(bisector, src_path);
+            //auto b = CGAL::intersection(bisector, dest_path);
+            auto a = intersection(bisector, src_path, line_loc[edge.corr_line]);
+            auto b = intersection(bisector, dest_path, line_loc[edge.corr_line]);
             if (!a || !b)
                 return false;
             if (tmp_inner_product < 0)
                 std::swap(a, b);
             if (!(tmp_p = boost::get<Point_2>(&*a)) || !(tmp_q = boost::get<Point_2>(&*b)))
                 return false;
-            std::cout << "tmp_p, tmp_q" << *tmp_p << " " << *tmp_q << std::endl;
+            if(is_debugging) std::cout << "tmp_p, tmp_q" << *tmp_p << " " << *tmp_q << std::endl;
             FT loc_p = calc_loc_on_line(bisector, *tmp_p),
                loc_q = calc_loc_on_line(bisector, *tmp_q);
-            std::cout << "loc_p, loc_q = " << loc_p << " " << loc_q << std::endl;
+            if(is_debugging) std::cout << "loc_p, loc_q = " << loc_p << " " << loc_q << std::endl;
             // if(loc_p >= loc_q)
             if (!less(loc_p, loc_q))
                 return false;
@@ -394,32 +430,39 @@ namespace CenterLineSolver {
             return true;
         }
         else { // tmp_outer_product > 0
-            Segment_2 new_seg = edge.new_loc(line_loc);
-            std::cout << "new_seg" << new_seg << std::endl;
+            //auto a = CGAL::intersection(bisector, src_path);
+            //auto b = CGAL::intersection(bisector, dest_path);
+            auto a = intersection(bisector, src_path, line_loc[edge.corr_line]);
+            auto b = intersection(bisector, dest_path, line_loc[edge.corr_line]);
+            Segment_2 new_seg = edge.new_loc(line_loc, this->cur_time);
+            if(is_debugging) std::cout << "new_seg" << new_seg << std::endl;
             Point_2 new_src = new_seg.source(), new_dest = new_seg.target();
-            Point_2 begin, end;
+            Point_2 begin(0,0), end(0,0);
             auto o = CGAL::intersection(bisector, line_loc[edge.corr_line]);
             assert(bool(o));
             Point_2 origin = *boost::get<Point_2>(&*o);
 
-            // std::cout << "bisector= " << bisector << std::endl;
-            // std::cout << new_src << " " << new_dest << " " << origin << std::endl;
+            if(is_debugging) {
+                std::cout << "bisector= " << bisector << std::endl;
+                std::cout << new_src << " " << new_dest << " " << origin << std::endl;
+            }
             FT src_loc = calc_loc_on_line(bisector, new_src);
             FT dest_loc = calc_loc_on_line(bisector, new_dest);
             FT origin_loc = calc_loc_on_line(bisector, origin);
             // （线段运动方向背对直线，如果依然能相交，说明运动方向偏转超过中线，说明相邻边偏转超过对位边，所以相邻边不会是对位边的相邻边，那么显然这个相邻边更能代表这一点的碰撞，所以不用考虑？）（若两边在中线同侧，则正对中线的一方一定是靠近另一边的一侧先接触中线，而对应的相邻边一定更接近背对中线的边，且角度更接近）
-            //std::cout << src_loc << " " << dest_loc << " " << origin_loc << std::endl;
+            if(is_debugging) std::cout << src_loc << " " << dest_loc << " " << origin_loc << std::endl;
             // if(src_loc <= origin_loc && dest_loc <= origin_loc)
             if (equal(src_loc, dest_loc))
                 return false; // 已经退化为一个点
             if (!less(origin_loc, src_loc) && !less(origin_loc, dest_loc))
                 return false;
 
-            auto x = CGAL::intersection(bisector, new_seg);
-            if (!x) {
+            FT min_loc = CGAL::min(src_loc, dest_loc), max_loc = CGAL::max(src_loc, dest_loc);
+            if (less(origin_loc, min_loc) || less(max_loc, origin_loc)) {
                 if (tmp_inner_product < 0) {
                     std::swap(a, b);
                     std::swap(src, dest);
+                    std::swap(src_path, dest_path);
                     is_endpoint = 2;
                 }
                 else
@@ -430,32 +473,35 @@ namespace CenterLineSolver {
                     begin = tmp_r->source();
                     is_endpoint = -is_endpoint;
                 }
-                else if ((tmp_p = boost::get<Point_2>(&*a))) {
+                else if ((tmp_p = boost::get<Point_2>(&*a)) && in_box(*tmp_p)) {
                     begin = *tmp_p;
                 }
-
-                std::cout << "begin = " << begin << std::endl;
+                else{ // 不会与其相交
+                    //std::cout << "do not collide" << std::endl;
+                    return false;
+                }
+                if(is_debugging) std::cout << "begin = " << begin << std::endl;
 
                 FT loc_p = calc_loc_on_line(bisector, begin), loc_q;
 
                 if (!b)
                     interval.set(loc_p, begin, is_endpoint);
-                else if ((tmp_q = boost::get<Point_2>(&*b))) {
+                else if ((tmp_q = boost::get<Point_2>(&*b)) && in_box(*tmp_q)) {
                     end = *tmp_q;
-                    std::cout << end << std::endl;
+                    //std::cout << end << std::endl;
                     loc_q = calc_loc_on_line(bisector, end);
-                    std::cout << "loc_q = " << loc_q << std::endl;
+                    //std::cout << "loc_q = " << loc_q << std::endl;
                     interval.set(loc_p, loc_q, begin, end, is_endpoint);
                 }
                 else
-                    assert(false); // 线段和中线没有交点，end不可能在中线上
+                    interval.set(loc_p, begin, is_endpoint); // 线段和中线没有交点，end不可能在中线上,因此此处说明交点足够远
                 return true;
             }
             // 线段一开始就与中线相交
             // 需要排除一开始从中线远离的情况
-            else if ((tmp_p = boost::get<Point_2>(&*x))) {
+            else {
+                tmp_p = &origin;
                 // std::cout << tmp_p << std::endl;
-
                 // if(src_loc == origin_loc)
                 if (equal(src_loc, origin_loc))
                     is_endpoint = 1;
@@ -465,6 +511,9 @@ namespace CenterLineSolver {
 
                 FT loc_p = origin_loc, loc_q;
                 begin = *tmp_p;
+
+                if(edge.prev == op_edge.next) a = boost::none;
+                if(edge.next == op_edge.prev) b = boost::none; // 如果一边与bisector相交、且两边有公共邻边，则它们的相应端点一定重合
                 if (!a && !b) {
                     interval.set(loc_p, begin, is_endpoint);
                 }
@@ -480,14 +529,15 @@ namespace CenterLineSolver {
                                       FT(eps) * calc_line_scale(bisector))) {
                             return false;
                         }
-                        if ((tmp_q = boost::get<Point_2>(&*b))) {
-                            end = *tmp_q;
+                        tmp_q = boost::get<Point_2>(&*b);
+                        if(!tmp_q)
+                            throw("calc_interval_on_line, tmp_p, a&&b,1: b no intersection");
+                        end = *tmp_q;
+                        if(in_box(end)) {
                             loc_q = calc_loc_on_line(bisector, end);
+                            interval.set(loc_p, loc_q, begin, end, is_endpoint);
                         }
-                        else
-                            assert(false); // dest不可能也在中线上
-
-                        interval.set(loc_p, loc_q, begin, end, is_endpoint);
+                        else interval.set(loc_p, begin, is_endpoint);
                     }
                     else if (is_endpoint == 2) {
                         if ((tmp_r = boost::get<Ray_2>(&*b))) {
@@ -499,22 +549,21 @@ namespace CenterLineSolver {
                                       FT(eps) * calc_line_scale(bisector))) {
                             return false;
                         }
-                        if ((tmp_q = boost::get<Point_2>(&*a))) {
-                            end = *tmp_q;
+                        tmp_q = boost::get<Point_2>(&*a);
+                        if(!tmp_q)
+                            throw("calc_interval_on_line, tmp_p, a&&b,2: b no intersection");
+                        end = *tmp_q;
+                        if(in_box(end)){
                             loc_q = calc_loc_on_line(bisector, end);
+                            interval.set(loc_p, loc_q, begin, end, is_endpoint);
                         }
-                        else
-                            assert(false); // src 不可能也在中线上
-                        interval.set(loc_p, loc_q, begin, end, is_endpoint);
+                        else interval.set(loc_p, begin, is_endpoint);
                     }
                     else {
                         // 此时交点一定在内部
                         Point_2 *tmp_src = boost::get<Point_2>(&*a);
                         Point_2 *tmp_dest = boost::get<Point_2>(&*b);
                         assert(tmp_src && tmp_dest); // 线段与bisector交点在线段内部
-
-                        //std::cout << bisector << std::endl
-                        std::cout << "tmp_src, tmp_dest = " << *tmp_src << " " << *tmp_dest << std::endl;
                         FT tmp_src_loc = calc_loc_on_line(bisector, *tmp_src);
                         FT tmp_dest_loc = calc_loc_on_line(bisector, *tmp_dest);
                         if (tmp_src_loc > tmp_dest_loc) {
@@ -526,7 +575,8 @@ namespace CenterLineSolver {
                             loc_q = tmp_src_loc;
                         }
                         is_endpoint = 0;
-                        interval.set(loc_p, loc_q, begin, end, is_endpoint);
+                        if(in_box(end)) interval.set(loc_p, loc_q, begin, end, is_endpoint);
+                        else interval.set(loc_p, begin, is_endpoint);
                     }
                 }
                 // a的路线有交点或b的路线有交点
@@ -537,12 +587,19 @@ namespace CenterLineSolver {
                     else if (b && (tmp_q = boost::get<Point_2>(&*b))) {
                         end = *tmp_q;
                     }
-                    loc_q = calc_loc_on_line(bisector, end);
-                    interval.set(loc_p, loc_q, begin, end, is_endpoint);
+                    if(is_debugging) {
+                        std::cout << "origin = " << origin << std::endl;
+                        std::cout << "begin = " << begin << std::endl;
+                        std::cout << "a = " << a << std::endl;
+                        std::cout << "b = " << b << std::endl;
+                    }
+                    if(in_box(end)){
+                        loc_q = calc_loc_on_line(bisector, end);
+                        interval.set(loc_p, loc_q, begin, end, is_endpoint);
+                    }
+                    else interval.set(loc_p, begin, is_endpoint);
                 }
             }
-            else
-                assert(false); // bisector 与segment不平行
         }
         return true;
     }
@@ -559,7 +616,7 @@ namespace CenterLineSolver {
             edge_opposite_line = line_data_pool[edge->corr_line].opposite();
 
         // 退化为三角形的情况
-        if (edge->next->next == edge->prev) {
+        if (edge->next->next == edge->prev && outer_product(edge->src_point->src_vector, edge->src_point->dest_vector) > 0) {
             auto inter = CGAL::intersection(edge->src_point->path(), edge->dest_point->path());
             Point_2 *incenter;
             if (inter && (incenter = boost::get<Point_2>(&*inter))) {
@@ -593,6 +650,7 @@ namespace CenterLineSolver {
             // is_parallel(it_vector, edge_vector)
             if (parallel && (tmp_inner_product < 0 && less(0, tmp_inner_product * tmp_inner_product, absolute_eps)))
                 continue;
+            if(is_debugging){
             std::cout << "run_id=" << run_id - 1 << " "
                       << "e_it_id=" << e_it_id - 1 << std::endl;
             std::cout << "edge_corr_line = " << edge->corr_line << std::endl;
@@ -603,6 +661,7 @@ namespace CenterLineSolver {
             std::cout << edge->src_point->path() << std::endl;
             std::cout << "cur_line= " << cur_line << std::endl;
             std::cout << "edge= " << edge_opposite_line << std::endl;
+            }
             bool bisector_not_found = !bisector_map.count(line_pair);
             if (bisector_not_found) {
                 if (tmp_inner_product >= 0)
@@ -615,10 +674,12 @@ namespace CenterLineSolver {
                     bisector = CGAL::bisector(
                         cur_line.perpendicular(*origin),
                         edge_opposite_line.opposite().perpendicular(*origin));
-                    // std::cout << *origin << std::endl;
-                    // std::cout << cur_line.perpendicular(*origin) << std::endl;
-                    // std::cout << edge_opposite_line.opposite().perpendicular(*origin) <<
-                    // std::endl;
+                    if(is_debugging){
+                        std::cout << *origin << std::endl;
+                        std::cout << cur_line.perpendicular(*origin) << std::endl;
+                        std::cout << edge_opposite_line.opposite().perpendicular(*origin) <<
+                        std::endl;
+                    }
                 }
                 if (inner_product(bisector.to_vector(),
                                   cur_line.to_vector().perpendicular(CGAL::LEFT_TURN)) < 0)
@@ -632,20 +693,19 @@ namespace CenterLineSolver {
             // l{0,1}, r{0,1}: 两个线段端点与bisector相交的位置; loc_l, loc_r:
             // 相交部分在bisector上的位置
             Interval interval0, interval1;
-            if ((run_id == 15 && e_it_id == 3)) {
-                start_debug();
-                std::cout << run_id - 1 << " " << e_it_id - 1 << ": " << bisector
-                          << std::endl;
-            }
-            bool tmp1 = calc_interval_on_line(bisector, *e_it, interval0, parallel);
-            bool tmp2 = calc_interval_on_line(bisector, *edge, interval1, parallel);
-            std::cout << interval0.to_string() << interval1.to_string();
+            //if ((run_id-1 == 13 && e_it_id-1 == 1)) {
+            //    start_debug();
+            //    std::cout << run_id - 1 << " " << e_it_id - 1 << ": " << bisector << std::endl;
+            //}
+            bool tmp1 = calc_interval_on_line(bisector, *e_it, *edge, interval0, parallel);
+            bool tmp2 = calc_interval_on_line(bisector, *edge, *e_it, interval1, parallel);
+            if(is_debugging) std::cout << interval0.to_string() << interval1.to_string();
             if (!tmp1 || !tmp2)
                 continue; // (!tmp1 && !tmp2)会漏掉情况
             // if(!calc_interval_on_line(bisector, *e_it, interval0) ||
             // !calc_interval_on_line(bisector, *edge, interval1)) continue;
             Interval interval = interval0 + interval1;
-            std::cout << interval.to_string();
+            if(is_debugging) std::cout << interval.to_string();
             if (interval.is_empty)
                 continue;
 
@@ -656,7 +716,7 @@ namespace CenterLineSolver {
             // else collision_point = point_l;
             collision_point = interval.begin_point;
             FT time = CGAL::squared_distance(collision_point, cur_line);
-            std::cout << "time = " << time << std::endl;
+            //std::cout << "time = " << time << std::endl;
             // parallel
             // TODO: 设置一个eps
             // is_parallel(it_vector, edge_vector)
@@ -682,7 +742,7 @@ namespace CenterLineSolver {
         // build all edge_data and point_data;
         for (int i = 0; i < len; ++i) {
             line_data_pool.emplace_back(poly.edge(i));
-            std::cout << poly.edge(i) << std::endl;
+            std::cout << i << " " << poly.edge(i) << std::endl;
             std::cout << line_data_pool[line_it] << std::endl;
             line_loc.emplace_back(line_data_pool[line_it]);
             Vector_2 speed = line_data_pool[line_it].to_vector().perpendicular(CGAL::LEFT_TURN);
@@ -724,10 +784,10 @@ namespace CenterLineSolver {
         EdgeData *base, EdgeData *edge, bool type, Point_2 location,
         std::vector<PointData *> &point_pool, std::vector<EdgeData *> &edge_pool)
     {
-        std::cout << "base->prev=" << base->prev->corr_line << std::endl;
-        std::cout << "base->next=" << base->next->corr_line << std::endl;
-        std::cout << "edge->prev=" << edge->prev->corr_line << std::endl;
-        std::cout << "edge->next=" << edge->next->corr_line << std::endl;
+        //std::cout << "base->prev=" << base->prev->corr_line << std::endl;
+        //std::cout << "base->next=" << base->next->corr_line << std::endl;
+        //std::cout << "edge->prev=" << edge->prev->corr_line << std::endl;
+        //std::cout << "edge->next=" << edge->next->corr_line << std::endl;
         base->del = edge->del = true;
         Line_2 base_line = line_data_pool[base->corr_line],
                edge_line = line_data_pool[edge->corr_line];
@@ -750,16 +810,28 @@ namespace CenterLineSolver {
                 else
                     edge->src_point->branches[1] = inter_seg;
 
-                auto inter0 = CGAL::intersection(bisector, base->src_point->path()),
-                     inter1 = CGAL::intersection(bisector, edge->dest_point->path());
-                assert(inter0 && inter1);
+                //auto inter0 = CGAL::intersection(bisector, base->src_point->path()),
+                //     inter1 = CGAL::intersection(bisector, edge->dest_point->path());
+                auto inter0 = intersection(bisector, base->src_point->path(), line_loc[base->corr_line]),
+                     inter1 = intersection(bisector, edge->dest_point->path(), line_loc[edge->corr_line]);
+                if(!inter0 || !inter1){
+                    std::cout << "bisector = " << bisector << std::endl;
+                    std::cout << "bisector_v = " << bisector.to_vector() << std::endl;
+                    std::cout << "base = " << base->new_loc(this->line_loc, this->cur_time) << std::endl;
+                    std::cout << "edge = " << edge->new_loc(this->line_loc, this->cur_time) << std::endl;
+                    std::cout << "edge->dest = " << edge->dest_point->path() << std::endl;
+                    std::cout << "inter=" << inter0 << std::endl << inter1 << std::endl;
+                    throw("CutHalfEdge is_parallel,type=0: no intersection");
+                }
                 Point_2 *p0 = boost::get<Point_2>(&*inter0),
-                        *p1 = boost::get<Point_2>(&*inter1);
-                assert(p0 && p1);
+                        *p1 = boost::get<Point_2>(&*inter1); // ? 会进入forced_return
+                if(!p0 || !p1){
+                    throw("CutHalfEdge is_parallel,type=0: intersection not Point_2");
+                }
                 FT l0 = calc_loc_on_line(bisector, *p0),
                    l1 = calc_loc_on_line(bisector, *p1);
-                std::cout << "p0=" << *p0 << std::endl;
-                std::cout << "p1=" << *p1 << std::endl;
+                //std::cout << "p0=" << *p0 << std::endl;
+                //std::cout << "p1=" << *p1 << std::endl;
                 if (less(l0, l1)) {
                     inter_seg->end_time = this->cur_time;
                     inter_seg->end_loc = *p1;
@@ -795,8 +867,10 @@ namespace CenterLineSolver {
                 else
                     edge->dest_point->branches[1] = inter_seg;
 
-                auto inter0 = CGAL::intersection(bisector, base->dest_point->path()),
-                     inter1 = CGAL::intersection(bisector, edge->src_point->path());
+                //auto inter0 = CGAL::intersection(bisector, base->dest_point->path()),
+                //     inter1 = CGAL::intersection(bisector, edge->src_point->path());
+                auto inter0 = intersection(bisector, base->dest_point->path(), line_loc[base->corr_line]),
+                     inter1 = intersection(bisector, edge->src_point->path(), line_loc[edge->corr_line]);
                 assert(inter0 && inter1);
                 Point_2 *p0 = boost::get<Point_2>(&*inter0),
                         *p1 = boost::get<Point_2>(&*inter1);
@@ -908,8 +982,10 @@ namespace CenterLineSolver {
         // parallel and opposite
         if (is_parallel(prev_v, next_v) && inner_product(prev_v, next_v) < 0) {
             Line_2 bisector = CGAL::bisector(prev_line.opposite(), next_line);
-            auto inter0 = CGAL::intersection(bisector, prev->src_point->path()),
-                 inter1 = CGAL::intersection(bisector, next->dest_point->path());
+            //auto inter0 = CGAL::intersection(bisector, prev->src_point->path()),
+            //     inter1 = CGAL::intersection(bisector, next->dest_point->path());
+            auto inter0 = intersection(bisector, prev->src_point->path(), line_loc[prev->corr_line]),
+                 inter1 = intersection(bisector, next->dest_point->path(), line_loc[next->corr_line]);
             assert(inter0 && inter1);
             Point_2 *p0 = boost::get<Point_2>(&*inter0),
                     *p1 = boost::get<Point_2>(&*inter1);
@@ -958,10 +1034,12 @@ namespace CenterLineSolver {
         EdgeData *base, EdgeData *prev, EdgeData *next, Point_2 location,
         std::vector<PointData *> &point_pool, std::vector<EdgeData *> &edge_pool)
     {
-        std::cout << "base= " << base->new_loc(line_loc) << std::endl;
-        std::cout << "prev= " << prev->new_loc(line_loc) << std::endl;
-        std::cout << "next= " << next->new_loc(line_loc) << std::endl;
-        std::cout << "location= " << location << std::endl;
+        if(is_debugging) {
+            std::cout << "base= " << base->new_loc(line_loc, this->cur_time) << std::endl;
+            std::cout << "prev= " << prev->new_loc(line_loc, this->cur_time) << std::endl;
+            std::cout << "next= " << next->new_loc(line_loc, this->cur_time) << std::endl;
+            std::cout << "location= " << location << std::endl;
+        }
         CutHalfEdge(base, prev, 1, location, point_pool, edge_pool);
         CutHalfEdge(base, next, 0, location, point_pool, edge_pool);
     }
@@ -970,6 +1048,8 @@ namespace CenterLineSolver {
     inline void CenterLineSolver<K, Poly_with_holes, Poly>::operator()(
         const Poly_with_holes &polygon)
     {
+        top_right = Point_2(polygon.outer_boundary().right_vertex()->x(), polygon.outer_boundary().top_vertex()->y());
+
         size_t tot_edges = polygon.outer_boundary().size(); // the size of line_data_pool.
         for (auto it = polygon.holes_begin(); it != polygon.holes_end(); ++it)
             tot_edges += it->size();
@@ -1018,150 +1098,181 @@ namespace CenterLineSolver {
         FT last_time = 0;
         std::vector<PointData *> point_pool;
         std::vector<EdgeData *> edge_pool;
-        while (!events.empty()) {
-            Event event = events.top();
-            events.pop();
-            if (!event.is_active())
-                continue;
-            point_pool.clear();
-            edge_pool.clear();
-            this->cur_time = event.time;
-            FT exact_time = CGAL::sqrt(event.time);
-            for (size_t i = 0; i < line_data_pool.size(); ++i) {
-                line_loc[i] = Line_2(line_data_pool[i].point(0) + line_speed[i] * exact_time,
-                                     line_data_pool[i].to_vector());
-            }
-            std::cout << "time = sqrt(" << event.time << ") = " << exact_time
-                      << std::endl;
-            EdgeData *event_a = event.a, *event_b = event.b;
-            Segment_2 seg0 = event_a->new_loc(line_loc),
-                      seg1 = event_b->new_loc(line_loc);
-            Line_2 bisector = bisector_map[std::make_pair(event_a->corr_line, event_b->corr_line)];
-            FT l0 = calc_loc_on_line(bisector, seg0.source()),
-               r0 = calc_loc_on_line(bisector, seg0.target());
-            FT l1 = calc_loc_on_line(bisector, seg1.target()),
-               r1 = calc_loc_on_line(bisector, seg1.source());
-            std::cout << "event.a=" << event_a->corr_line
-                      << "     event.b=" << event_b->corr_line << std::endl;
-            std::cout << event_a << " " << event_b << std::endl;
-            std::cout << "l0 r0 l1 r1= " << l0 << " " << r0 << std::endl
-                      << l1 << " " << r1 << std::endl
-                      << std::endl;
-            std::cout << "seg0 seg1=" << seg0 << " " << seg1 << std::endl;
-            std::cout << "is_parallel = " << (event.type == EventType::PARALLEL) << std::endl;
-            if (event.type == EventType::TRIANGLE) {
-                EdgeData *it = event_a;
-                if (it->src_point->end_time == FT(0)) {
-                    Line_2 line[3] = {line_loc[it->corr_line], line_loc[it->next->corr_line], line_loc[it->prev->corr_line]};
-                    auto inter0 = CGAL::intersection(line[1], line[2]);
-                    auto inter1 = CGAL::intersection(line[2], line[0]);
-                    auto inter2 = CGAL::intersection(line[0], line[1]);
-                    if (!inter0 || !inter1 || !inter2) {
-                        std::cerr << "triangle: no intersection" << std::endl;
-                        exit(1);
-                    }
-                    Point_2 *pts[3] = {boost::get<Point_2>(&*inter0), boost::get<Point_2>(&*inter1), boost::get<Point_2>(&*inter2)};
-                    PointData *data[3] = {it->next->dest_point, it->src_point, it->dest_point};
-                    if (!pts[0] || !pts[1] || !pts[2]) {
-                        std::cerr << "triangle: intersection not Point_2" << std::endl;
-                        exit(1);
-                    }
-                    Point_2 barycenter = CGAL::ORIGIN + (((*pts[0] - CGAL::ORIGIN) + (*pts[1] - CGAL::ORIGIN) + (*pts[2] - CGAL::ORIGIN)) / 3);
-                    FT end_time = CGAL::squared_distance(barycenter, line[0]);
-                    data[0]->end_time = data[1]->end_time = data[2]->end_time = end_time;
-                    data[0]->end_loc = data[1]->end_loc = data[2]->end_loc = barycenter;
+        const char *error = NULL;
+        try{
+            while (!events.empty()) {
+                Event event = events.top();
+                events.pop();
+                if (!event.is_active())
+                    continue;
+                point_pool.clear();
+                edge_pool.clear();
+                this->cur_time = event.time;
+                FT exact_time = CGAL::sqrt(event.time);
+                for (size_t i = 0; i < line_data_pool.size(); ++i) {
+                    line_loc[i] = Line_2(line_data_pool[i].point(0) + line_speed[i] * exact_time,
+                                        line_data_pool[i].to_vector());
                 }
-            }
-            else if (event.type == EventType::PARALLEL) {
-                /* 输出公共部分 TODO: 改成创建点 */
-                this->res_segments.emplace_back(
-                    (l0 < l1) ? seg1.target() : seg0.source(),
-                    (r0 < r1) ? seg0.target() : seg1.source());
-                if (event_a->prev != event_b->next) {
-                    // if(l0 < l1)
-                    if (less(l0, l1))
-                        CutHalfEdge(event_a, event_b->next, 0, seg1.target(), point_pool, edge_pool);
-                    // else if(l0 > l1)
-                    else if (less(l1, l0))
-                        CutHalfEdge(event_b, event_a->prev, 1, seg0.source(), point_pool, edge_pool);
-                    else {
-                        CutHalfPoint(event_a->prev, event_b->next, seg0.source(), point_pool, edge_pool);
-                    }
-                    /* if(seg0.source()和seg1.target()相邻){ 直接跳过 }
-else if(l0 < l1){ 用seg1.target()的位置建点，切割seg0，重连 }
-else if(l0 > l1){ 用seg0.source()的位置建点，切割seg1，重连 }*/
-                }
-                else {
-                    event_b->dest_point->end_time = event_a->src_point->end_time = event.time;
-                    event_a->src_point->end_loc = seg0.source();
-                    event_b->dest_point->end_loc = seg1.target();
-                }
-                if (event_a->next != event_b->prev) {
-                    // if(r0 < r1)
-                    if (less(r0, r1))
-                        CutHalfEdge(event_b, event_a->next, 0, seg0.target(), point_pool, edge_pool);
-                    // else if(r0 > r1)
-                    else if (less(r1, r0))
-                        CutHalfEdge(event_a, event_b->prev, 1, seg1.source(), point_pool, edge_pool);
-                    else {
-                        CutHalfPoint(event_b->prev, event_a->next, seg1.source(), point_pool, edge_pool);
-                    }
-                    /* if(seg0.source()和seg1.target()相邻){ 直接跳过 }
-if(r0 < r1){ 用seg0.target()的位置建点，切割seg1，重连 }
-else if(r0 > r1){ 用seg1.source()的位置建点，切割seg0，重连 } */
-                }
-                else {
-                    event_b->src_point->end_time = event_a->dest_point->end_time = event.time;
-                    event_a->dest_point->end_loc = seg0.target();
-                    event_b->src_point->end_loc = seg1.source();
-                }
-                std::cout << "parallel: a=" << event_a->src_point->start_loc << " "
-                          << event_a->src_point->end_loc << std::endl;
-                std::cout << "parallel: a=" << event_a->dest_point->start_loc << " "
-                          << event_a->dest_point->end_loc << std::endl;
-                std::cout << "parallel: b=" << event_b->src_point->start_loc << " "
-                          << event_b->src_point->end_loc << std::endl;
-                std::cout << "parallel: b=" << event_b->dest_point->start_loc << " "
-                          << event_b->dest_point->end_loc << std::endl;
-            }
-            else {
-                if (l0 > r0) {
-                    std::swap(seg0, seg1);
-                    std::swap(l0, r1);
-                    std::swap(l1, r0);
-                    std::swap(event_a, event_b);
-                }
-                if (event_a->prev == event_b->next) {
-                    CutHalfPoint(event_b, event_a, seg0.source(), point_pool, edge_pool);
-                }
-                // else if(l0 < l1){
-                else if (less(l0, l1)) {
-                    CutEdge(event_a, event_b, event_b->next, seg1.target(), point_pool, edge_pool);
-                }
-                // else if(l0 > l1){
-                else if (less(l1, l0)) {
-                    CutEdge(event_b, event_a->prev, event_a, seg0.source(), point_pool, edge_pool);
-                }
-                else {
-                    CutHalfPoint(event_b, event_a, seg0.source(), point_pool, edge_pool);
-                    CutHalfPoint(event_a->prev, event_b->next, seg1.target(), point_pool, edge_pool);
-                }
-            }
+                std::cout << "time = sqrt(" << event.time << ") = " << exact_time
+                        << std::endl;
+                
+                EdgeData *event_a = event.a, *event_b = event.b;
+                /* 用于调试弧形墙
+                if(event_b->corr_line == 322 || event_a->corr_line == 322){
+                    int l_a = event_a->corr_line, l_b = event_b->corr_line;
+                    Line_2 line_a = line_data_pool[event_a->corr_line], line_b = line_data_pool[event_b->corr_line];
+                    std::cout << "a = " << l_a << std::endl;
+                    start_debug();
+                    std::cout << "point="<<line_a.point(0) << " "<< std::endl;
+                    std::cout << "point="<<line_b.point(0) << std::endl;
+                    std::cout << "vect="<<line_a.to_vector() << " "<< std::endl;
+                    std::cout << "vect="<<line_b.to_vector() << " "<< std::endl;
+                    std::cout << "speed="<<line_speed[l_a] << std::endl;
+                    std::cout << "speed="<<line_speed[l_b] << std::endl;
+                    std::cout << "line_loc="<<line_loc[event_a->corr_line] << std::endl
+                            << "line_loc="<<line_loc[event_b->corr_line] << std::endl;
+                    std::cout << "src = " << event_a->src_point->path() << std::endl;
+                    std::cout << "dest = " << event_a->dest_point->path() << std::endl;
+                    std::cout << "src = " << event_b->src_point->path() << std::endl;
+                    std::cout << "dest = " << event_b->dest_point->path() << std::endl;
+                    std::cout << event_a->prev->corr_line << " " << line_data_pool[event_a->prev->corr_line].to_vector() << std::endl;
+                    std::cout << line_data_pool[event_a->corr_line].to_vector() << std::endl;
+                    std::cout << event_a->next->corr_line << " " << line_data_pool[event_a->next->corr_line].to_vector() << std::endl;
 
-            for (EdgeData *it : edge_pool) {
-                append_collision_events(it);
-            }
-            edge_data_pool.insert(edge_data_pool.end(), edge_pool.begin(), edge_pool.end());
-            point_data_pool.insert(point_data_pool.end(), point_pool.begin(), point_pool.end());
+                    std::cout << event_b->prev->corr_line << " " << line_data_pool[event_b->prev->corr_line].to_vector() << std::endl;
+                    std::cout << event_b->next->corr_line << " " << line_data_pool[event_b->next->corr_line].to_vector() << std::endl;
+                }
+                */
+                Segment_2 seg0 = event_a->new_loc(line_loc, this->cur_time),
+                        seg1 = event_b->new_loc(line_loc, this->cur_time);
+                Line_2 bisector = bisector_map[std::make_pair(event_a->corr_line, event_b->corr_line)];
+                FT l0 = calc_loc_on_line(bisector, seg0.source()),
+                r0 = calc_loc_on_line(bisector, seg0.target());
+                FT l1 = calc_loc_on_line(bisector, seg1.target()),
+                r1 = calc_loc_on_line(bisector, seg1.source());
+                std::cout << "event.a=" << event_a->corr_line
+                        << "     event.b=" << event_b->corr_line << std::endl;
+                std::cout << event_a << " " << event_b << std::endl;
+                std::cout << "l0 r0 l1 r1= " << l0 << " " << r0 << std::endl
+                        << l1 << " " << r1 << std::endl
+                        << std::endl;
+                std::cout << "seg0 seg1=" << seg0 << " " << seg1 << std::endl;
+                std::cout << "is_parallel = " << (event.type == EventType::PARALLEL) << std::endl;
+                if (event.type == EventType::TRIANGLE) {
+                    EdgeData *it = event_a;
+                    if (it->src_point->end_time == FT(0)) {
+                        Line_2 line[3] = {line_loc[it->corr_line], line_loc[it->next->corr_line], line_loc[it->prev->corr_line]};
+                        auto inter0 = CGAL::intersection(line[1], line[2]);
+                        auto inter1 = CGAL::intersection(line[2], line[0]);
+                        auto inter2 = CGAL::intersection(line[0], line[1]);
+                        if (!inter0 || !inter1 || !inter2)
+                            throw("triangle: no intersection");
+                        Point_2 *pts[3] = {boost::get<Point_2>(&*inter0), boost::get<Point_2>(&*inter1), boost::get<Point_2>(&*inter2)};
+                        PointData *data[3] = {it->next->dest_point, it->src_point, it->dest_point};
+                        if (!pts[0] || !pts[1] || !pts[2])
+                            throw("triangle: intersection not Point_2");
+                        Point_2 barycenter = CGAL::ORIGIN + (((*pts[0] - CGAL::ORIGIN) + (*pts[1] - CGAL::ORIGIN) + (*pts[2] - CGAL::ORIGIN)) / 3);
+                        FT end_time = CGAL::squared_distance(barycenter, line[0]);
+                        data[0]->end_time = data[1]->end_time = data[2]->end_time = end_time;
+                        data[0]->end_loc = data[1]->end_loc = data[2]->end_loc = barycenter;
+                    }
+                }
+                else if (event.type == EventType::PARALLEL) {
+                    /* 输出公共部分 TODO: 改成创建点 */
+                    this->res_segments.emplace_back(
+                        (l0 < l1) ? seg1.target() : seg0.source(),
+                        (r0 < r1) ? seg0.target() : seg1.source());
+                    if (event_a->prev != event_b->next) {
+                        // if(l0 < l1)
+                        if (less(l0, l1))
+                            CutHalfEdge(event_a, event_b->next, 0, seg1.target(), point_pool, edge_pool);
+                        // else if(l0 > l1)
+                        else if (less(l1, l0))
+                            CutHalfEdge(event_b, event_a->prev, 1, seg0.source(), point_pool, edge_pool);
+                        else {
+                            CutHalfPoint(event_a->prev, event_b->next, seg0.source(), point_pool, edge_pool);
+                        }
+                        /* if(seg0.source()和seg1.target()相邻){ 直接跳过 }
+    else if(l0 < l1){ 用seg1.target()的位置建点，切割seg0，重连 }
+    else if(l0 > l1){ 用seg0.source()的位置建点，切割seg1，重连 }*/
+                    }
+                    else {
+                        event_b->dest_point->end_time = event_a->src_point->end_time = event.time;
+                        event_a->src_point->end_loc = seg0.source();
+                        event_b->dest_point->end_loc = seg1.target();
+                    }
+                    if (event_a->next != event_b->prev) {
+                        // if(r0 < r1)
+                        if (less(r0, r1))
+                            CutHalfEdge(event_b, event_a->next, 0, seg0.target(), point_pool, edge_pool);
+                        // else if(r0 > r1)
+                        else if (less(r1, r0))
+                            CutHalfEdge(event_a, event_b->prev, 1, seg1.source(), point_pool, edge_pool);
+                        else {
+                            CutHalfPoint(event_b->prev, event_a->next, seg1.source(), point_pool, edge_pool);
+                        }
+                        /* if(seg0.source()和seg1.target()相邻){ 直接跳过 }
+    if(r0 < r1){ 用seg0.target()的位置建点，切割seg1，重连 }
+    else if(r0 > r1){ 用seg1.source()的位置建点，切割seg0，重连 } */
+                    }
+                    else {
+                        event_b->src_point->end_time = event_a->dest_point->end_time = event.time;
+                        event_a->dest_point->end_loc = seg0.target();
+                        event_b->src_point->end_loc = seg1.source();
+                    }
+                    //std::cout << "parallel: a=" << event_a->src_point->start_loc << " "
+                    //        << event_a->src_point->end_loc << std::endl;
+                    //std::cout << "parallel: a=" << event_a->dest_point->start_loc << " "
+                    //        << event_a->dest_point->end_loc << std::endl;
+                    //std::cout << "parallel: b=" << event_b->src_point->start_loc << " "
+                    //        << event_b->src_point->end_loc << std::endl;
+                    //std::cout << "parallel: b=" << event_b->dest_point->start_loc << " "
+                    //        << event_b->dest_point->end_loc << std::endl;
+                }
+                else {
+                    if (l0 > r0) {
+                        std::swap(seg0, seg1);
+                        std::swap(l0, r1);
+                        std::swap(l1, r0);
+                        std::swap(event_a, event_b);
+                    }
+                    if (event_a->prev == event_b->next) {
+                        CutHalfPoint(event_b, event_a, seg0.source(), point_pool, edge_pool);
+                    }
+                    // else if(l0 < l1){
+                    else if (less(l0, l1)) {
+                        CutEdge(event_a, event_b, event_b->next, seg1.target(), point_pool, edge_pool);
+                    }
+                    // else if(l0 > l1){
+                    else if (less(l1, l0)) {
+                        CutEdge(event_b, event_a->prev, event_a, seg0.source(), point_pool, edge_pool);
+                    }
+                    else {
+                        CutHalfPoint(event_b, event_a, seg0.source(), point_pool, edge_pool);
+                        CutHalfPoint(event_a->prev, event_b->next, seg1.target(), point_pool, edge_pool);
+                    }
+                }
 
-            std::cout << "segments:=====================================" << std::endl;
-            for (PointData *it : point_data_pool)
-                std::cout << it->start_loc << " => " << it->end_loc << std::endl;
+                for (EdgeData *it : edge_pool) {
+                    append_collision_events(it);
+                }
+                edge_data_pool.insert(edge_data_pool.end(), edge_pool.begin(), edge_pool.end());
+                point_data_pool.insert(point_data_pool.end(), point_pool.begin(), point_pool.end());
+
+                std::cout << "segments:=====================================" << std::endl;
+                for(size_t i = 0;i < point_data_pool.size();++i)
+                    std::cout << i << ": " << point_data_pool[i]->start_loc << " => " << point_data_pool[i]->end_loc << std::endl;
+                end_debug();
+            }
+        }
+        catch(const char *str){
+            std::cerr << "unexpectedly exit: " << str << std::endl;
+            error = str;
         }
 
         std::cout << "segments:=====================================" << std::endl;
-        for (PointData *it : point_data_pool)
-            std::cout << it->start_loc << " => " << it->end_loc << std::endl;
+        for(size_t i = 0;i < point_data_pool.size();++i)
+            std::cout << i << ": " << point_data_pool[i]->start_loc << " => " << point_data_pool[i]->end_loc << std::endl;
 
         int counter = 0;
         for (PointData *it : point_data_pool) {
@@ -1178,6 +1289,7 @@ else if(r0 > r1){ 用seg1.source()的位置建点，切割seg0，重连 } */
             else
                 this->sub_segments.emplace_back(it->start_loc, it->end_loc);
         }
+        if(error) throw(error);
     }
 } // namespace CenterLineSolver
 #endif // GET_CENTERLINE_H

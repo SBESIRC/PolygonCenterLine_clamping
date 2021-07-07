@@ -81,7 +81,7 @@ struct PolygonCenterLineTest{
         QApplication app(argc, const_cast<char**>(argv));
 
 		PolygonCenterLine centerline;
-        for(size_t space_id = 3;space_id < spaces.size();++space_id){
+        for(size_t space_id = 23;space_id < spaces.size();++space_id){
             Polygon_with_holes_2 &space = spaces[space_id];
 			points.clear();
 			segs.clear();
@@ -92,7 +92,9 @@ struct PolygonCenterLineTest{
 			PolyParts.push_back(space.outer_boundary());
 			PolyParts.insert(PolyParts.end(), space.holes_begin(), space.holes_end());
 
-			centerline.calcCenterLine(space);
+			if(!centerline.calcCenterLine(space)){
+				//exit(1);
+			}
 			// TODO: 根据centerline中的答案得到points, segs...(在getCenterLine()中)
 
 			auto result = centerline.centerline();
@@ -120,7 +122,6 @@ struct PolygonCenterLineTest{
 				int b = std::lower_bound(points.begin(), points.end(), seg.target()) - points.begin();
 				sub_segs.emplace_back(a, b);
 			}
-
 
             std::string title = "output " + std::to_string(space_id);
 			CGAL::CenterLineViewer<Polygon_2> mainwindow(app.activeWindow(), *PolyParts.begin(), title.c_str());

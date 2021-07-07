@@ -1,8 +1,19 @@
+## Changelog (2021.07.07)
+
+- [x] 改正
+- [x] 在`append_collision_events`中，改正一边与bisector相交、且两边有公共邻边的情况下的数值稳定性问题。（强制忽略一开始就相交的边的端点轨迹与bisector的交点，因为这个交点不会导致边与bisector脱离）
+- [x] 解决多边形相邻点重合导致的问题
+- [x] line与ray的CGAL::intersection的tolerance太低，改用line line intersection手动判断
+- [x] 已经相交的情况，不应该用原始的ray和bisector的交点与当前交点比较
+- [ ] 弧墙仍有一些问题
+
+
+
 ## Changelog (2021.07.01)
 
 - [x] 增加了对于三条边构成三角形的情况的处理
-- [ ] 考虑两条边退化后相交于一点的情况，此时也应有赋值
-- [ ] 排查3号图no intersection的原因
+- [x] 考虑两条边退化后相交于一点的情况，此时也应有赋值
+- [x] 排查3号图no intersection的原因
 
 
 

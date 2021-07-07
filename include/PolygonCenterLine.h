@@ -51,6 +51,7 @@ namespace CenterLine {
         {
             CGAL::Gmpfr::set_default_precision(256);
             CGAL::set_pretty_mode(std::cout);
+            CGAL::set_pretty_mode(std::cerr);
         }
         void setDefaultPrecision(int p) { CGAL::Gmpfr::set_default_precision(p); }
         const std::vector<Segment_2> &centerline() const { return _segments; }
@@ -70,45 +71,46 @@ namespace CenterLine {
         //std::vector<CGAL::Segment_2<InnerK>> segments, sub_segments;
         //std::vector<CGAL::Polygon_2<InnerK>> new_PolyParts;
 
+        // calculate relative coordinates ( relative_poly )
+        CGAL::Polygon_2<InnerK> outer = new_space.outer_boundary();
+        std::vector<CGAL::Polygon_2<InnerK>> holes(new_space.holes_begin(), new_space.holes_end());
+        CGAL::Vector_2<InnerK> polygon_offset(outer.left_vertex()->x(), outer.bottom_vertex()->y());
+        for (auto it = outer.vertices_begin(); it != outer.vertices_end(); ++it) {
+            std::cout << "p=" << (*it - polygon_offset) << std::endl;
+            outer.set(it, *it - polygon_offset);
+        }
+        for (auto &poly : holes)
+            for (auto i = poly.vertices_begin(); i != poly.vertices_end(); ++i) {
+                std::cout << "p=" << (*i - polygon_offset) << std::endl;
+                poly.set(i, *i - polygon_offset);
+            }
+        CGAL::Polygon_with_holes_2<InnerK> relative_poly(outer, holes.begin(), holes.end());
+
+        // calculate with relative_poly
+        CenterLineSolver::CenterLineSolver<InnerK, CGAL::Polygon_with_holes_2<InnerK>, CGAL::Polygon_2<InnerK>> solver;
+        bool success = false;
         try {
-            // calculate relative coordinates ( relative_poly )
-            CGAL::Polygon_2<InnerK> outer = new_space.outer_boundary();
-            std::vector<CGAL::Polygon_2<InnerK>> holes(new_space.holes_begin(), new_space.holes_end());
-            CGAL::Vector_2<InnerK> polygon_offset(outer.left_vertex()->x(), outer.bottom_vertex()->y());
-            for (auto it = outer.vertices_begin(); it != outer.vertices_end(); ++it) {
-                std::cout << "p=" << (*it - polygon_offset) << std::endl;
-                outer.set(it, *it - polygon_offset);
-            }
-            for (auto &poly : holes)
-                for (auto i = poly.vertices_begin(); i != poly.vertices_end(); ++i) {
-                    std::cout << "p=" << (*i - polygon_offset) << std::endl;
-                    poly.set(i, *i - polygon_offset);
-                }
-            CGAL::Polygon_with_holes_2<InnerK> relative_poly(outer, holes.begin(), holes.end());
-
-            // calculate with relative_poly
-            CenterLineSolver::CenterLineSolver<InnerK, CGAL::Polygon_with_holes_2<InnerK>, CGAL::Polygon_2<InnerK>> solver;
             solver(relative_poly);
-
-            const auto &segments = solver.res_segments;
-            const auto &sub_segments = solver.sub_segments;
-
-            for (size_t i = 0; i < segments.size(); ++i) {
-                auto &seg = segments[i];
-                CGAL::Segment_2<InnerK> new_seg(seg.source() + polygon_offset, seg.target() + polygon_offset);
-                _segments.push_back(result_converter(new_seg));
-            }
-            for (size_t i = 0; i < sub_segments.size(); ++i) {
-                auto &seg = sub_segments[i];
-                CGAL::Segment_2<InnerK> new_seg(seg.source() + polygon_offset, seg.target() + polygon_offset);
-                _sub_segments.push_back(result_converter(new_seg));
-            }
-            return true;
+            success = true;
         }
-        catch (std::exception &e) {
-            std::cerr << "error = " << e.what() << std::endl;
-            return false;
+        catch (const char *str){
+            std::cerr << "error = " << str << std::endl;
         }
+
+        const auto &segments = solver.res_segments;
+        const auto &sub_segments = solver.sub_segments;
+
+        for (size_t i = 0; i < segments.size(); ++i) {
+            auto &seg = segments[i];
+            CGAL::Segment_2<InnerK> new_seg(seg.source() + polygon_offset, seg.target() + polygon_offset);
+            _segments.push_back(result_converter(new_seg));
+        }
+        for (size_t i = 0; i < sub_segments.size(); ++i) {
+            auto &seg = sub_segments[i];
+            CGAL::Segment_2<InnerK> new_seg(seg.source() + polygon_offset, seg.target() + polygon_offset);
+            _sub_segments.push_back(result_converter(new_seg));
+        }
+        return success;
     } // void PolygonCenterLine::showCenterLine(double interval)
 
 } // namespace CenterLine
