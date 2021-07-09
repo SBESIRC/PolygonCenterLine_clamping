@@ -122,7 +122,7 @@ namespace CenterLineSolver{
             // parallel
             // TODO: ÉèÖÃÒ»¸öeps
             // is_parallel(it_vector, edge_vector)
-            std::cout << "is_parallel = " << parallel << std::endl;
+            //std::cout << "is_parallel = " << parallel << std::endl;
             if (parallel) {
                 events.emplace(time, e_it, edge, EventType::PARALLEL);
             }
