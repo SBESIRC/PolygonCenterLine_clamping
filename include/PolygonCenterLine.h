@@ -17,7 +17,7 @@ before including this file in exactly one source file.
 
 #include "CenterLineSolver.h"
 #include "convertKernel.h"
-#include "parse.h"
+#include "GeoJSON.h"
 
 namespace CenterLine {
     class PolygonCenterLine {
@@ -57,6 +57,40 @@ namespace CenterLine {
         const std::vector<Segment_2> &centerline() const { return _segments; }
         const std::vector<Segment_2> &sub_centerline() const { return _sub_segments; }
         bool calcCenterLine(const Polygon_with_holes_2 &space);
+        bool calcCenterLine(std::string geojson) { return calcCenterLine(geojson_to_poly(geojson)); }
+        std::string centerline_geojson() const { return segments_to_geojson(_segments); }
+        std::string sub_centerline_geojson() const { return segments_to_geojson(_sub_segments); }
+
+        static std::string segments_to_geojson(const std::vector<Segment_2> &segs){
+            std::vector<std::pair<Point, Point>> res;
+            for(auto &seg : segs){
+                Point_2 src = seg.source(), dest = seg.target();
+                Point p0(CGAL::to_double(src.x()), CGAL::to_double(src.y()));
+                Point p1(CGAL::to_double(dest.x()), CGAL::to_double(dest.y()));
+                res.push_back(std::make_pair(p0, p1));
+            }
+            return out2str(res);
+        }
+        static Polygon_with_holes_2 geojson_to_poly(std::string geojson){
+            parseout res;
+            parse_geojson(geojson, res);
+            auto &data = res.data[0];
+            std::vector<Point_2> pts;
+            for(auto &p : data.coords[0]){
+                pts.emplace_back(p.x, p.y);
+            }
+            Polygon_2 poly(pts.begin(), pts.end()), hole;
+            if(poly.is_clockwise_oriented()) poly.reverse_orientation();
+            std::vector<Polygon_2> holes;
+            for(int i = 1;i < data.coords.size();++i){
+                pts.clear();
+                for(auto &p : data.coords[i]) pts.emplace_back(p.x, p.y);
+                hole = Polygon_2(pts.begin(), pts.end());
+                if(hole.is_counterclockwise_oriented()) hole.reverse_orientation();
+                holes.push_back(hole);
+            }
+            return Polygon_with_holes_2(poly, holes.begin(), holes.end());
+        }
     };
 } // namespace CenterLine
 #endif // POLYGON_CENTERLINE_H
@@ -112,6 +146,7 @@ namespace CenterLine {
         }
         return success;
     } // void PolygonCenterLine::showCenterLine(double interval)
+
 
 } // namespace CenterLine
 #undef PolygonCenterLine_Implementation
