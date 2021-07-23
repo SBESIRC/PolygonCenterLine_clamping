@@ -12,7 +12,7 @@ namespace KernelConverter {
     using Fixed_kernel = CGAL::Simple_cartesian<Fixed_nt>;
     using Simple_kernel = CGAL::Simple_cartesian<double>;
 
-    // Precision=-1表示使用默认精度
+    // Precision=-1锟斤拷示使锟斤拷默锟较撅拷锟斤拷
     template <typename K, typename NewK, int Precision = -1>
     struct NumberConverter : public std::unary_function<K, NewK> {
         typename NewK operator()(const typename K &a) const
@@ -51,7 +51,8 @@ namespace KernelConverter {
             std::vector<K::Point_2> tmp_pts;
             K::Point_2 last_p, cur_p;
             bool first = true;
-            for (auto &point : poly) {
+            for (auto it = poly.vertices_begin();it != poly.vertices_end();++it) {
+                CGAL::Point_2<From> &point = *it;
                 cur_p = operator()(point);
                 if (first)
                     first = false;
