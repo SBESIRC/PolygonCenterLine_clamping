@@ -23,7 +23,7 @@ namespace CenterLine {
     class PolygonCenterLine {
         using K = CGAL::Exact_predicates_exact_constructions_kernel;
         //https://github.com/CGAL/cgal/issues/1873
-        using Point_2 = typename K::Point_2;
+        using Point_2 = K::Point_2;
         using Polygon_2 = CGAL::Polygon_2<K>;
         using Segment_2 = CGAL::Segment_2<K>;
         using Polygon_with_holes_2 = CGAL::Polygon_with_holes_2<K>;
