@@ -71,21 +71,35 @@ namespace CenterLine {
             }
             return out2str(res);
         }
+        static Polygon_2 convert_poly(std::vector<Point> &points){
+            std::vector<Point_2> pts;
+            Point_2 tmp;
+            for(auto &p : points){
+                Point_2 pt(p.x, p.y);
+                if(!pts.empty() && tmp == pt) continue;
+                pts.push_back(pt);
+                tmp = pt;
+            }
+            if(pts.front() == pts.back()) pts.pop_back();
+            return Polygon_2(pts.begin(), pts.end());
+        }
         static Polygon_with_holes_2 geojson_to_poly(std::string geojson){
             parseout res;
             parse_geojson(geojson, res);
             auto &data = res.data[0];
-            std::vector<Point_2> pts;
-            for(auto &p : data.coords[0]){
-                pts.emplace_back(p.x, p.y);
-            }
-            Polygon_2 poly(pts.begin(), pts.end()), hole;
+            //std::vector<Point_2> pts;
+            //for(auto &p : data.coords[0]){
+            //    pts.emplace_back(p.x, p.y);
+            //}
+            //Polygon_2 poly(pts.begin(), pts.end()), hole;
+            Polygon_2 poly = convert_poly(data.coords[0]), hole;
             if(poly.is_clockwise_oriented()) poly.reverse_orientation();
             std::vector<Polygon_2> holes;
             for(int i = 1;i < data.coords.size();++i){
-                pts.clear();
-                for(auto &p : data.coords[i]) pts.emplace_back(p.x, p.y);
-                hole = Polygon_2(pts.begin(), pts.end());
+                //pts.clear();
+                //for(auto &p : data.coords[i]) pts.emplace_back(p.x, p.y);
+                //hole = Polygon_2(pts.begin(), pts.end());
+                hole = convert_poly(data.coords[i]);
                 if(hole.is_counterclockwise_oriented()) hole.reverse_orientation();
                 holes.push_back(hole);
             }
