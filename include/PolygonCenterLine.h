@@ -103,7 +103,8 @@ namespace CenterLine {
                 if(hole.is_counterclockwise_oriented()) hole.reverse_orientation();
                 holes.push_back(hole);
             }
-            return Polygon_with_holes_2(poly, holes.begin(), holes.end());
+            if(holes.empty()) return Polygon_with_holes_2(poly);
+            else return Polygon_with_holes_2(poly, holes.begin(), holes.end());
         }
     };
 } // namespace CenterLine
