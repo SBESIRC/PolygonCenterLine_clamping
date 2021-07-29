@@ -32,10 +32,8 @@ namespace CenterLine {
         // Gmpq precisions
         static const int _input_precision = 20; // 小数点后20二进制，约1e-6
 
-        KernelConverter::KernelConverter<K, InnerK, KernelConverter::NumberConverter<typename K::FT, InnerK::FT, _input_precision>> kernel_converter;
-        //KernelConverter::KernelConverter<K, InnerK, KernelConverter::NumberConverter<typename K::FT, InnerK::FT>> kernel_converter;
-
-        KernelConverter::KernelConverter<InnerK, K, KernelConverter::NumberConverter<InnerK::FT, typename K::FT>> result_converter;
+        KernelConverter::KernelConverter<InnerK, K, KernelConverter::NumberConverter<InnerK::FT, K::FT>> result_converter;
+        KernelConverter::KernelConverter<K, InnerK, KernelConverter::NumberConverter<K::FT, InnerK::FT, _input_precision>> kernel_converter;
         // results:
         std::vector<Segment_2> _segments, _sub_segments;
 
@@ -87,19 +85,11 @@ namespace CenterLine {
             parseout res;
             parse_geojson(geojson, res);
             auto &data = res.data[0];
-            //std::vector<Point_2> pts;
-            //for(auto &p : data.coords[0]){
-            //    pts.emplace_back(p.x, p.y);
-            //}
-            //Polygon_2 poly(pts.begin(), pts.end()), hole;
-            Polygon_2 poly = convert_poly(data.coords[0]), hole;
+            Polygon_2 poly = convert_poly(data.coords[0]);
             if(poly.is_clockwise_oriented()) poly.reverse_orientation();
             std::vector<Polygon_2> holes;
             for(int i = 1;i < data.coords.size();++i){
-                //pts.clear();
-                //for(auto &p : data.coords[i]) pts.emplace_back(p.x, p.y);
-                //hole = Polygon_2(pts.begin(), pts.end());
-                hole = convert_poly(data.coords[i]);
+                Polygon_2 hole = convert_poly(data.coords[i]);
                 if(hole.is_counterclockwise_oriented()) hole.reverse_orientation();
                 holes.push_back(hole);
             }
