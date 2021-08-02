@@ -17,7 +17,7 @@ before including this file in exactly one source file.
 
 #include "CenterLineSolver.h"
 #include "convertKernel.h"
-#include "GeoJSON.h"
+#include "CenterLineGeoJSON.h"
 
 namespace CenterLine {
     class PolygonCenterLine {
