@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 
 #define PolygonCenterLine_Implementation
 #include "PolygonCenterLine.h"
@@ -14,14 +15,20 @@ int main(int argc, char *argv[])
         return 1;
     }
     //CenterLine::PolygonCenterLine centerline(argv[1]);
-    PolygonCenterLineTest centerline(argv[1]);
+    char filename[1024];
+    //for(int i = 173;i <= 210;++i){
+    for(int i = 1;i <= 10;++i){
+        sprintf(filename, argv[1], i);
+        PolygonCenterLineTest centerline(filename, i);
+        centerline.showCenterLine();
+        centerline.showPartition(0);
+    }
     //double interval = 1;
     //if(argc >= 3){
     //	stringstream s_in(argv[2]);
     //	s_in >> interval;
     //}
     //cout << "interval = " << interval << endl;
-    centerline.showCenterLine();
     //centerline.showCenterLine(interval);
     cout << "Success." << endl;
     return 0;

@@ -1,3 +1,7 @@
+若boundingbox切割的结果不连续，只保留包含原始Offset  Polygon的部分
+
+
+
 - [x] 将`PointData`的`start_loc` `end_loc`改为一个独立的类
 - [ ] 解决在同一点相遇的问题
 

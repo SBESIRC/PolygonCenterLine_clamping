@@ -41,6 +41,10 @@ namespace CenterLineSolver {
         Point_2 point(bool port) { return port ? target() : source(); }
         int location(bool port) { return port ? end_loc : start_loc; }
         FT start_time() const { return locations[start_loc].time; }
+        FT end_time() const {
+            if(end_loc != -1) return locations[end_loc].time;
+            else return FT(1) / FT(0);
+        }
         Vector_2 speed() const
         {
             // TODO: 处理极端情况(夹角接近+-180°)

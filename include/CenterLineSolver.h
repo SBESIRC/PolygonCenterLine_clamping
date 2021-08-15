@@ -21,7 +21,7 @@ namespace CenterLineSolver {
             return std::hash<std::uint64_t>{}(std::uint64_t(p.first) << 32 | p.second);
         }
     };
-    // È·±£<a, b> = <b, a>
+    // È·ï¿½ï¿½<a, b> = <b, a>
     inline std::pair<int, int> make_mono_pair(int a, int b)
     {
         return a < b ? std::make_pair(a, b) : std::make_pair(b, a);
@@ -50,17 +50,19 @@ namespace CenterLineSolver {
                                               TRIANGLE };
 
         const double CornerCosineThreshold = -0.5;
+        const Poly_with_holes *origin_space;
         std::vector<Line_2> line_data_pool, line_loc;
         std::vector<Vector_2> line_speed;
         std::vector<PointData *> point_data_pool;
         std::vector<EdgeData *> edge_data_pool;
         std::priority_queue<Event> events;
-        Point_2 top_right; // ÓÒ±ß½çÓëÉÏ±ß½ç£¬ÓÃÓÚÅÐ¶Ï½»µãÊÇ·ñÂäÔÚÇøÓòÍâ
-        FT cur_time;       // events×îÐÂpop³öµÄÊÂ¼þµÄ·¢ÉúÊ±¼ä. ³õÊ¼Îª0
+        Point_2 top_right; // ï¿½Ò±ß½ï¿½ï¿½ï¿½ï¿½Ï±ß½ç£¬ï¿½ï¿½ï¿½ï¿½ï¿½Ð¶Ï½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        FT cur_time;       // eventsï¿½ï¿½ï¿½ï¿½popï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½ï¿½Ä·ï¿½ï¿½ï¿½Ê±ï¿½ï¿½. ï¿½ï¿½Ê¼Îª0
         //bool is_debugging;
         std::unordered_map<std::pair<int, int>, Line_2, PairHash> bisector_map;
         // results
         std::vector<Segment_2> res_segments, sub_segments;
+        std::vector<std::pair<FT, FT>> res_seg_dis;
         std::vector<Location> locations;
 
         static bool equal(const FT &a, const FT &b, FT epsilon = eps)
@@ -102,7 +104,7 @@ namespace CenterLineSolver {
                     v_bisector = -v_bisector;
             }
             FT tmp_inner_product = inner_product(v_norm, v_bisector);
-            // speedµÄ²Î¿¼ÖµÎªsquared_length=1
+            // speedï¿½Ä²Î¿ï¿½ÖµÎªsquared_length=1
             if (tmp_inner_product * tmp_inner_product < v_bisector.squared_length() * FT(eps_limit)) {
                 std::cerr << "speed too large" << std::endl;
                 assert(false); //"speed too large"
@@ -129,7 +131,7 @@ namespace CenterLineSolver {
             return v_bisector;
 
             // FT tmp_inner_product = inner_product(v_norm, v_bisector);
-            //// speedµÄ²Î¿¼ÖµÎªsquared_length=1
+            //// speedï¿½Ä²Î¿ï¿½ÖµÎªsquared_length=1
             // if(tmp_inner_product * tmp_inner_product < v_bisector.squared_length() *
             // FT(eps_limit)) { 	assert(false); //"speed too large"
             //}
@@ -170,21 +172,21 @@ namespace CenterLineSolver {
         {
             return CGAL::sqrt(line.a() * line.a() + line.b() * line.b());
         }
-        // ÑØ×ÅlineµÄ·½ÏòµÝÔö
+        // ï¿½ï¿½ï¿½ï¿½lineï¿½Ä·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         static FT calc_loc_on_line(const Line_2 &line, const Point_2 &point)
         {
             // std::cout << line << std::endl << point << std::endl;
             return (line.b() * point.x() - line.a() * point.y()) / calc_line_scale(line);
         }
-        // ÔÚbisectorÉÏµÄÎ»ÖÃÇø¼ä(°´ÏÈºóË³Ðò´ÓÏÈµ½ºó)
+        // ï¿½ï¿½bisectorï¿½Ïµï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½Èºï¿½Ë³ï¿½ï¿½ï¿½ï¿½Èµï¿½ï¿½ï¿½)
         bool calc_interval_on_line(const Line_2 &bisector, const EdgeData &edge, const EdgeData &op_edge,
                                    Interval &interval, bool parallel = false);
         void append_collision_events(EdgeData *edge);
         void start_debug() { is_debugging = true; }
         void end_debug() { is_debugging = false; }
         void append_line_data(const Polygon_2 &poly, size_t &line_it);
-        // type=0: baseµÄsourceÖÁedgeµÄsource; type=1: edgeµÄtargetÖÁbaseµÄtarget
-        // TODO: µãµÄÖÕÖ¹ (¶ÔÓÚÁíÒ»¶ËÏà½»ÓÚÍ¬Ò»µãµÄÇé¿ö£¬¿¼ÂÇÁ½±ßÏàÁÚµÄÇé¿ö)
+        // type=0: baseï¿½ï¿½sourceï¿½ï¿½edgeï¿½ï¿½source; type=1: edgeï¿½ï¿½targetï¿½ï¿½baseï¿½ï¿½target
+        // TODO: ï¿½ï¿½ï¿½ï¿½ï¿½Ö¹ (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½à½»ï¿½ï¿½Í¬Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Úµï¿½ï¿½ï¿½ï¿½)
         void cut_half_edge(EdgeData *base, EdgeData *edge, bool type, int location,
                            std::vector<PointData *> &point_pool,
                            std::vector<EdgeData *> &edge_pool);
@@ -230,6 +232,7 @@ namespace CenterLineSolver {
     inline void CenterLineSolver<K, Poly_with_holes, Poly>::operator()(
         const Poly_with_holes &polygon)
     {
+        origin_space = &polygon;
         top_right = Point_2(polygon.outer_boundary().right_vertex()->x(), polygon.outer_boundary().top_vertex()->y());
 
         size_t tot_edges = polygon.outer_boundary().size(); // the size of line_data_pool.
@@ -253,7 +256,7 @@ namespace CenterLineSolver {
         // exists.
         //				-> as a function: "for a new edge with each edge in
         //the Iterable list"
-        // TODO: Ô¤´¦ÀíËÙ¶È£¬¼õÉÙÇóËÙ¶ÈµÄÏûºÄ
+        // TODO: Ô¤ï¿½ï¿½ï¿½ï¿½ï¿½Ù¶È£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù¶Èµï¿½ï¿½ï¿½ï¿½ï¿½
 
         // set an event for each start time of the overlapping interval of an edge
         // pair.
@@ -267,13 +270,13 @@ namespace CenterLineSolver {
         // fetch an event at a time in chronological order:
         // if(edge0.is_active() && edge1.is_active())
         // > case edge vs edge: split the edges (or maybe endpoints)
-        //		(Æ½ÐÐÏàÓö:Ö±½ÓÖÕÖ¹Ô­À´µÄ¶Ëµã¹ì¼££¬È»ºóÊä³öÏà½»µÄÆ¬¶Î£¬ÔÙ°Ñ¶àÓàµÄÆ¬¶Î½ØÈ¡³öÀ´£¬ÖØ½¨¶à±ßÐÎ)
+        //		(Æ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½:Ö±ï¿½ï¿½ï¿½ï¿½Ö¹Ô­ï¿½ï¿½ï¿½Ä¶Ëµï¿½ì¼£ï¿½ï¿½È»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½à½»ï¿½ï¿½Æ¬ï¿½Î£ï¿½ï¿½Ù°Ñ¶ï¿½ï¿½ï¿½ï¿½Æ¬ï¿½Î½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
         // > case edge vs point: split the edge; split the point
-        //		(ÏàÓöÎ»ÖÃÎ»ÓÚÄ³¸öÏß¶ÎÄÚ²¿:
-        //°ÑÕâ¸öÏß¶Î²ð³ÉÁ½°ë£¬È»ºóÈÃµãÖÕÖ¹£¬·ÖÁÑ³ÉÁ½¸öµã·Ö±ðÓëÁ½±ßµÄedgeÆ¬¶ÎÏà£¬ÖØ½¨¶à±ßÐÎ)
+        //		(ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½Î»ï¿½ï¿½Ä³ï¿½ï¿½ï¿½ß¶ï¿½ï¿½Ú²ï¿½:
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß¶Î²ï¿½ï¿½ï¿½ï¿½ï¿½ë£¬È»ï¿½ï¿½ï¿½Ãµï¿½ï¿½ï¿½Ö¹ï¿½ï¿½ï¿½ï¿½ï¿½Ñ³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ßµï¿½edgeÆ¬ï¿½ï¿½ï¿½à£¬ï¿½Ø½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
         // > case point vs point: modify the linking relation of points and edges;
-        //		(ÏàÓöÎ»ÖÃÎªÁ½¸öÏß¶ÎµÄ¶¥µã:
-        //ÖÕÖ¹Á½¸ö¶¥µã¹ì¼££¬ÖØ½¨ÐÂµÄ¶¥µã£¬ÖØÐÂÁ¬½Ó¶à±ßÐÎ)
+        //		(ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½ß¶ÎµÄ¶ï¿½ï¿½ï¿½:
+        //ï¿½ï¿½Ö¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ì¼£ï¿½ï¿½ï¿½Ø½ï¿½ï¿½ÂµÄ¶ï¿½ï¿½ã£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó¶ï¿½ï¿½ï¿½ï¿½)
         // change the speed of new points
         // for new edges: call "append_collision_events"
 
@@ -321,7 +324,7 @@ namespace CenterLineSolver {
             //std::cout << std::endl;
         }
 
-        // ²¹È«Á¬Ïß
+        // ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½
         try{
             this->connect_segments();
         }
@@ -337,7 +340,13 @@ namespace CenterLineSolver {
                 continue;
             }
             if (it->is_ans) {
-                this->res_segments.emplace_back(it->source(), it->target());
+                if(it->end_loc != -1){
+                    this->res_segments.emplace_back(it->source(), it->target());
+                    this->res_seg_dis.emplace_back(it->start_time(), it->end_time());
+                }
+                else{
+                    std::cerr << "point " << it->point_id << " not ended" << std::endl;
+                }
             }
             else
                 this->sub_segments.emplace_back(it->source(), it->target());
