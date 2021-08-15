@@ -45,7 +45,7 @@ namespace CenterLineSolver{
                     throw("cut_half_edge is_parallel,type=0: no intersection");
                 }
                 Point_2 *p0 = boost::get<Point_2>(&*inter0),
-                        *p1 = boost::get<Point_2>(&*inter1); // ? »á½øÈëforced_return
+                        *p1 = boost::get<Point_2>(&*inter1); // ? ï¿½ï¿½ï¿½ï¿½ï¿½forced_return
                 if (!p0 || !p1) {
                     throw("cut_half_edge is_parallel,type=0: intersection not Point_2");
                 }
@@ -60,7 +60,7 @@ namespace CenterLineSolver{
                     inter_seg->set_end(loc_id);
                     if (edge->dest_point->end_loc == -1)
                         cut_half_edge(base, edge->next, 0, loc_id, point_pool, edge_pool);
-                    // TODO: ÊÇ·ñÓÐ¿ÉÄÜÑ­»·»ØÀ´?
+                    // TODO: ï¿½Ç·ï¿½ï¿½Ð¿ï¿½ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½?
                     //inter_seg->branches[0] = edge->dest_point->branches[0];
                 }
                 else if (less(l1, l0)) {
@@ -96,6 +96,8 @@ namespace CenterLineSolver{
                 auto inter0 = intersection(bisector, base->dest_point->path(), line_loc[base->corr_line]),
                      inter1 = intersection(bisector, edge->src_point->path(), line_loc[edge->corr_line]);
                 assert(inter0 && inter1);
+                if(!inter0) throw("cut_half_edge.h, inter0 is null");
+                if(!inter1) throw("cut_half_edge.h, inter1 is null");
                 Point_2 *p0 = boost::get<Point_2>(&*inter0),
                         *p1 = boost::get<Point_2>(&*inter1);
                 int loc_id = -1;
@@ -135,7 +137,7 @@ namespace CenterLineSolver{
                                              edge->to_vector());
             point_pool.push_back(point);
             if (edge->src_point->end_loc == -1) {
-                edge->src_point->set_end(location); // ÖÕÖ¹Ò»¸öµã
+                edge->src_point->set_end(location); // ï¿½ï¿½Ö¹Ò»ï¿½ï¿½ï¿½ï¿½
             }
             //edge->src_point->branches[1].emplace_back(point, 0);
             //point->branches[0].emplace_back(edge->src_point, 1);
@@ -157,7 +159,7 @@ namespace CenterLineSolver{
             point_pool.push_back(point);
 
             if (edge->dest_point->end_loc == -1) {
-                edge->dest_point->set_end(location); // ÖÕÖ¹Ò»¸öµã
+                edge->dest_point->set_end(location); // ï¿½ï¿½Ö¹Ò»ï¿½ï¿½ï¿½ï¿½
             }
             //edge->dest_point->branches[1].emplace_back(point, 0);
             //point->branches[0].emplace_back(edge->dest_point, 1);

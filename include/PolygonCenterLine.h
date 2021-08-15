@@ -10,32 +10,51 @@ before including this file in exactly one source file.
 
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel_with_sqrt.h>
+#include <CGAL/Lazy_exact_nt.h>
 #include <CGAL/Gmpfr.h>
 #include <CGAL/Polygon_2.h>
 #include <CGAL/Polygon_2_algorithms.h>
 #include <CGAL/Polygon_with_holes_2.h>
 
 #include "CenterLineSolver.h"
+#include "PartitionSolver.h"
 #include "convertKernel.h"
 #include "CenterLineGeoJSON.h"
 
 namespace CenterLine {
-    class PolygonCenterLine {
+    struct PolygonCenterLine {
         using K = CGAL::Exact_predicates_exact_constructions_kernel;
+        using FT = K::FT;
         //https://github.com/CGAL/cgal/issues/1873
         using Point_2 = K::Point_2;
         using Polygon_2 = CGAL::Polygon_2<K>;
         using Segment_2 = CGAL::Segment_2<K>;
+        using Vector_2 = CGAL::Vector_2<K>;
         using Polygon_with_holes_2 = CGAL::Polygon_with_holes_2<K>;
 
-        using InnerK = CGAL::Simple_cartesian<CGAL::Gmpfr>;
+		using Gps_traits_2 = CGAL::Gps_circle_segment_traits_2<K>;
+		using Offset_polygon_2 = typename Gps_traits_2::Polygon_2;
+		using Offset_polygon_with_holes_2 = typename Gps_traits_2::Polygon_with_holes_2;
+
+        using InnerK = CGAL::Simple_cartesian<CGAL::Lazy_exact_nt<CGAL::Gmpfr>>;
         // Gmpq precisions
         static const int _input_precision = 20; // 小数点后20二进制，约1e-6
 
+        KernelConverter::NumberConverter<K::FT, InnerK::FT, _input_precision> nt_converter;
+        KernelConverter::NumberConverter<InnerK::FT, K::FT> res_nt_converter;
         KernelConverter::KernelConverter<InnerK, K, KernelConverter::NumberConverter<InnerK::FT, K::FT>> result_converter;
         KernelConverter::KernelConverter<K, InnerK, KernelConverter::NumberConverter<K::FT, InnerK::FT, _input_precision>> kernel_converter;
+
+        Polygon_with_holes_2 relative_poly;
+        Vector_2 polygon_offset;
+        std::vector<FT> point_contour_distance;
         // results:
+        std::vector<Segment_2> relative_segments, relative_sub_segments;
         std::vector<Segment_2> _segments, _sub_segments;
+        std::vector<std::pair<FT, FT>> segment_dis;
+        std::vector<Offset_polygon_with_holes_2> rel_remainders;
+        std::vector<Polygon_2> rel_convex_remainders;
+        std::vector<Polygon_with_holes_2> rel_parts;
 
         void init()
         {
@@ -56,6 +75,8 @@ namespace CenterLine {
         const std::vector<Segment_2> &sub_centerline() const { return _sub_segments; }
         bool calcCenterLine(const Polygon_with_holes_2 &space);
         bool calcCenterLine(std::string geojson) { return calcCenterLine(geojson_to_poly(geojson)); }
+        // calc with _segments
+        bool calcPartition(FT R);
         std::string centerline_geojson() const { return segments_to_geojson(_segments); }
         std::string sub_centerline_geojson() const { return segments_to_geojson(_sub_segments); }
 
@@ -106,53 +127,89 @@ namespace CenterLine {
     {
         init();
 
-        CGAL::Polygon_with_holes_2<InnerK> new_space = kernel_converter.convert(space);
         //std::vector<CGAL::Segment_2<InnerK>> segments, sub_segments;
         //std::vector<CGAL::Polygon_2<InnerK>> new_PolyParts;
 
         // calculate relative coordinates ( relative_poly )
-        CGAL::Polygon_2<InnerK> outer = new_space.outer_boundary();
-        std::vector<CGAL::Polygon_2<InnerK>> holes(new_space.holes_begin(), new_space.holes_end());
-        CGAL::Vector_2<InnerK> polygon_offset(outer.left_vertex()->x(), outer.bottom_vertex()->y());
+        Polygon_2 outer = space.outer_boundary();
+        std::vector<Polygon_2> holes(space.holes_begin(), space.holes_end());
+        polygon_offset = Vector_2(outer.left_vertex()->x(), outer.bottom_vertex()->y());
         for (auto it = outer.vertices_begin(); it != outer.vertices_end(); ++it) {
             std::cout << "p=" << (*it - polygon_offset) << std::endl;
             outer.set(it, *it - polygon_offset);
         }
-        for (auto &poly : holes)
-            for (auto i = poly.vertices_begin(); i != poly.vertices_end(); ++i) {
+        for (auto it = holes.begin(); it != holes.end();++it)
+            for (auto i = it->vertices_begin(); i != it->vertices_end(); ++i) {
                 std::cout << "p=" << (*i - polygon_offset) << std::endl;
-                poly.set(i, *i - polygon_offset);
+                it->set(i, *i - polygon_offset);
             }
-        CGAL::Polygon_with_holes_2<InnerK> relative_poly(outer, holes.begin(), holes.end());
 
+        relative_poly = Polygon_with_holes_2(outer, holes.begin(), holes.end());
+
+        CGAL::Polygon_with_holes_2<InnerK> new_poly = kernel_converter.convert(relative_poly);
         // calculate with relative_poly
         CenterLineSolver::CenterLineSolver<InnerK, CGAL::Polygon_with_holes_2<InnerK>, CGAL::Polygon_2<InnerK>> solver;
         bool success = false;
         try {
-            solver(relative_poly);
+            solver(new_poly);
             success = true;
         }
         catch (const char *str){
             std::cerr << "error = " << str << std::endl;
         }
 
-        const auto &segments = solver.res_segments;
-        const auto &sub_segments = solver.sub_segments;
-
-        for (size_t i = 0; i < segments.size(); ++i) {
-            auto &seg = segments[i];
-            CGAL::Segment_2<InnerK> new_seg(seg.source() + polygon_offset, seg.target() + polygon_offset);
-            _segments.push_back(result_converter(new_seg));
+        relative_segments.clear(); relative_sub_segments.clear(); segment_dis.clear();
+        std::transform(solver.res_segments.begin(), solver.res_segments.end(), std::back_inserter(relative_segments), result_converter);
+        std::transform(solver.sub_segments.begin(), solver.sub_segments.end(), std::back_inserter(relative_sub_segments), result_converter);
+        for(auto p : solver.res_seg_dis){
+            segment_dis.emplace_back(res_nt_converter(p.first), res_nt_converter(p.second));
         }
-        for (size_t i = 0; i < sub_segments.size(); ++i) {
-            auto &seg = sub_segments[i];
-            CGAL::Segment_2<InnerK> new_seg(seg.source() + polygon_offset, seg.target() + polygon_offset);
-            _sub_segments.push_back(result_converter(new_seg));
+        for(auto p_it : solver.locations){
+            point_contour_distance.push_back(CGAL::sqrt(p_it.time));
+        }
+        std::sort(point_contour_distance.begin(), point_contour_distance.end());
+        std::vector<FT>::iterator it = std::unique(point_contour_distance.begin(), point_contour_distance.end());
+        point_contour_distance.erase(it, point_contour_distance.end());
+
+        //relative_segments = solver.res_segments;
+        //relative_sub_segments = solver.sub_segments;
+
+        for (size_t i = 0; i < relative_segments.size(); ++i) {
+            auto &seg = relative_segments[i];
+            //CGAL::Segment_2<InnerK> new_seg(seg.source() + polygon_offset, seg.target() + polygon_offset);
+            //_segments.push_back(result_converter(new_seg));
+            _segments.emplace_back(seg.source() + polygon_offset, seg.target() + polygon_offset);
+        }
+        for (size_t i = 0; i < relative_sub_segments.size(); ++i) {
+            auto &seg = relative_sub_segments[i];
+            //CGAL::Segment_2<InnerK> new_seg(seg.source() + polygon_offset, seg.target() + polygon_offset);
+            //_sub_segments.push_back(result_converter(new_seg));
+            _sub_segments.emplace_back(seg.source() + polygon_offset, seg.target() + polygon_offset);
         }
         return success;
-    } // void PolygonCenterLine::showCenterLine(double interval)
+    } // bool PolygonCenterLine::calcCenterLine(const Polygon_with_holes_2 &space)
 
 
+    bool PolygonCenterLine::calcPartition(FT R) {
+        if(relative_segments.empty()) return false;
+        PartitionSolver<K> solver;
+        solver.space = relative_poly;
+        solver.segments = relative_segments;
+        solver.seg_dis = segment_dis;
+        bool res = false;
+        try {
+            res = solver.solve(R);
+        }
+        catch (const char *str){
+            std::cerr << "error = " << str << std::endl;
+        }
+        if(!res) return false;
+        rel_remainders = solver.remainders;
+        rel_convex_remainders = solver.convex_remainders;
+        rel_parts = solver.parts;
+
+        return true;
+    } // bool PolygonCentrerLine::calcPartition(const Polygon_with_holes_2 &space);
 } // namespace CenterLine
 #undef PolygonCenterLine_Implementation
 #endif // PolygonCenterLine_Implementation

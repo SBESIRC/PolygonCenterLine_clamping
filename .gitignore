@@ -6,7 +6,10 @@ Testing
 build
 /output*.png
 /*output*.jpg
+test_results/
+partition_results/
 .qglviewer.xml
+.qglviewer1.xml
 .vscode
 Makefile
 cmake_install.cmake

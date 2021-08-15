@@ -1,8 +1,46 @@
 #pragma once
 #include <queue>
 #include "CenterLineSolver.h"
+#include "convertKernel.h"
 
 namespace CenterLineSolver {
+    template <typename K>
+    inline typename K::Point_2 get_intersection(const CGAL::Polygon_with_holes_2<K> &poly, typename K::Point_2 point, typename K::Vector_2 direct){
+        using IK = CGAL::Epeck;
+        using IFT = typename IK::FT;
+        KernelConverter::KernelConverter<K, CGAL::Epeck, KernelConverter::NumberConverter<K::FT, IK::FT>> to_exact;
+        KernelConverter::KernelConverter<CGAL::Epeck, K, KernelConverter::NumberConverter<CGAL::Epeck::FT, K::FT, 256>> to_Gmpfr;
+        CGAL::Polygon_with_holes_2<IK> space = to_exact.convert(poly);
+        CGAL::Point_2<IK> p = to_exact(point), *tmp_p, new_p;
+        IFT cur_dis = -1;
+        CGAL::Vector_2<IK> v = to_exact(direct);
+        CGAL::Ray_2<IK> ray(p, v);
+        CGAL::Polygon_2<IK> &outer = space.outer_boundary();
+        std::cout << "polygon = " << outer << std::endl << "ray = " << ray << std::endl;
+        for(auto it = outer.edges_begin(); it != outer.edges_end();++it){
+            auto inter = CGAL::intersection(*it, ray);
+            if(inter && (tmp_p = boost::get<CGAL::Point_2<IK>>(&*inter))){
+                IFT dis = CGAL::squared_distance(*tmp_p, p);
+                if(cur_dis < 0 || dis < cur_dis){
+                    cur_dis = dis;
+                    new_p = *tmp_p;
+                }
+            }
+        }
+        for(auto h_it = space.holes_begin(); h_it != space.holes_end();++h_it){
+            for(auto it = h_it->edges_begin();it != h_it->edges_end();++it){
+                auto inter = CGAL::intersection(*it, ray);
+                if(inter && (tmp_p = boost::get<CGAL::Point_2<IK>>(&*inter))){
+                    IFT dis = CGAL::squared_distance(*tmp_p, p);
+                    if(cur_dis < 0 || dis < cur_dis){
+                        cur_dis = dis;
+                        new_p = *tmp_p;
+                    }
+                }
+            }
+        }
+        return to_Gmpfr(new_p);
+    }
     template <typename K, class Poly_with_holes, class Poly>
     inline void CenterLineSolver<K, Poly_with_holes, Poly>::connect_segments(){
         for(int i = 0;i < locations.size();++i){
@@ -19,10 +57,16 @@ namespace CenterLineSolver {
         std::priority_queue<std::pair<FT, int>> Q; // <-time, loc_id>
 
         for(auto p : point_data_pool) if(p->is_ans) {
-            in_vectors[p->start_loc].push_back(p->point(0) - p->point(1));
-            in_vectors[p->end_loc].push_back(p->point(1) - p->point(0));
+            if(p->end_loc == -1){
+                std::cerr << "point_data " << p->point_id << " not ended" << std::endl;
+            }
+            else{
+                in_vectors[p->start_loc].push_back(p->point(0) - p->point(1));
+                in_vectors[p->end_loc].push_back(p->point(1) - p->point(0));
+            }
         }
         std::cout << "preprocessing finished" << std::endl;
+        size_t locations_size = locations.size();
         for(int i = 0;i < locations.size();++i) if(locations[i].branches.size() == 1){ // leaves
             visited[i] = true;
             auto &e = locations[i].branches[0];
@@ -37,12 +81,15 @@ namespace CenterLineSolver {
                 std::cout << v;
                 in_vectors[new_loc].push_back(v);
             }
-            inQ[new_loc] = true;
-            Q.emplace(-locations[new_loc].time, new_loc);
+            if(!inQ[new_loc]){
+                inQ[new_loc] = true;
+                Q.emplace(-locations[new_loc].time, new_loc);
+            }
         }
         while(!Q.empty()){
             int loc_id = Q.top().second; Q.pop();
             visited[loc_id] = true;
+            
             for(auto &e : locations[loc_id].branches) {
                 if(e.first->end_loc == -1){
                     std::cerr << "Point " << e.first->point_id << " not ended." << std::endl;
@@ -59,10 +106,10 @@ namespace CenterLineSolver {
                     std::cout << e.first->point(e.second) << " => " << e.first->point(e.second^1) << std::endl;
                     std::cout << "to: "; for(auto v : in_vectors[new_loc]) std::cout << -v << " "; std::cout << std::endl;
 
-                    if(equal(src.x(), dest.x()) && equal(src.y(), dest.y())){ // ÍË»¯µÄµã
+                    if(equal(src.x(), dest.x()) && equal(src.y(), dest.y())){ // ï¿½Ë»ï¿½ï¿½Äµï¿½
                         in_vectors[new_loc].insert(in_vectors[new_loc].end(), in_vectors[loc_id].begin(), in_vectors[loc_id].end());
                     }
-                    else if(in_vectors[new_loc].size() == 0){ // Ïà¹ØµÄËùÓÐPointData¾ù²»ÊÇ´ð°¸
+                    else if(in_vectors[new_loc].size() == 0){ // ï¿½ï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½PointDataï¿½ï¿½ï¿½ï¿½ï¿½Ç´ï¿½
                         Vector_2 used_vector;
                         FT value = -1;
                         for(auto v : in_vectors[loc_id]){
@@ -100,7 +147,7 @@ namespace CenterLineSolver {
                             in_vectors[new_loc].push_back(dest - foot);
                         }
                     }
-                    else{ // Á½²à¾ùÓÐin_vectors
+                    else{ // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½in_vectors
                         Vector_2 used_vector0, used_vector1, used_v0, used_v1;
                         FT value = -2, cur_value;
                         for(auto v0 : in_vectors[loc_id]) {
@@ -131,7 +178,7 @@ namespace CenterLineSolver {
                                 }
                             }
                         }
-                        if(used_vector0 == base_v && used_vector1 == base_v){ // Ö±½ÓÁ¬Ïß
+                        if(used_vector0 == base_v && used_vector1 == base_v){ // Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
                             PointData *new_point = new PointData(locations, loc_id, new_loc, point_data_pool.size());
                             point_data_pool.push_back(new_point);
                             in_vectors[new_loc].push_back(base_v);
@@ -188,5 +235,22 @@ namespace CenterLineSolver {
                 }
             }
         }
-	}
+        // extend leaf segments
+        std::vector<int> degree(locations.size(), 0);
+        for(auto p : point_data_pool) if(p->is_ans) {
+            ++degree[p->start_loc];
+            if(p->end_loc != -1) ++degree[p->end_loc];
+        }
+        for(size_t loc_id = 0;loc_id != locations_size;++loc_id){
+            if(degree[loc_id] == 1){
+                std::cout << "leaf point " << locations[loc_id].point << std::endl;
+                std::cout << "vector=" << in_vectors[loc_id][0] << std::endl;
+                Point_2 new_p = get_intersection(*origin_space, locations[loc_id].point, in_vectors[loc_id][0]);
+                int endpoint = locations.size();
+                locations.emplace_back(new_p, locations[loc_id].time);
+                PointData *point0 = new PointData(locations, loc_id, endpoint, point_data_pool.size());
+                point_data_pool.push_back(point0);
+            }
+        }
+    }
 } // namespace CenterLineSolver
