@@ -109,4 +109,38 @@ namespace CenterLine
 		root["type"] = "FeatureCollection";
 		return root.toStyledString();
 	}
-}
+
+	Json::Value dump_block(const Block &block){ // polygon_with_holes: [polygon: [point: [x, y] ] ]
+		Json::Value polys, poly, point;
+		for(auto lst : block.coords){
+			poly.clear();
+			for(auto p : lst){
+				point.clear();
+				point.append(p.x); point.append(p.y);
+				poly.append(poly);
+			}
+			polys.append(poly);
+		}
+		return polys;
+	}
+	std::string out2str(const std::vector<Block> &blocks) {
+		//auto pt = out.p;
+		//auto type = out.type;
+		//auto oS = out.oS;
+		//double sample_degree = pi / sample_num;
+		Json::Value root, features, lst;
+		Json::Value feature, geometry, polygon, coords, point, pc;
+		for (const auto &block : blocks) {
+			coords.append(dump_block(block));
+		}
+		geometry["type"] = "MultiPolygon";
+		geometry["coordinates"] = coords;
+		feature["type"] = "Feature";
+		feature["geometry"] = geometry;
+		features.append(feature);
+
+		root["features"] = features;
+		root["type"] = "FeatureCollection";
+		return root.toStyledString();
+	}
+}// namespace CenterLine

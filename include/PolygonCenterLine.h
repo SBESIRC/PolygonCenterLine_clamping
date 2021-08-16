@@ -79,6 +79,8 @@ namespace CenterLine {
         bool calcPartition(FT R);
         std::string centerline_geojson() const { return segments_to_geojson(_segments); }
         std::string sub_centerline_geojson() const { return segments_to_geojson(_sub_segments); }
+        std::string parts_geojson() const { return multipoly_to_geojson(rel_parts, polygon_offset); }
+
 
         static std::string segments_to_geojson(const std::vector<Segment_2> &segs){
             std::vector<std::pair<Point, Point>> res;
@@ -89,6 +91,18 @@ namespace CenterLine {
                 res.push_back(std::make_pair(p0, p1));
             }
             return out2str(res);
+        }
+        static std::string multipoly_to_geojson(const std::vector<Polygon_with_holes_2> &polygons, Vector_2 offset = Vector_2(0, 0)){
+            std::vector<Block> blocks;
+            for(auto &polygon : polygons){
+                Block block;
+                block.coords.push_back(convert_points(polygon.outer_boundary(), offset));
+                for(auto h_it = polygon.holes_begin(); h_it != polygon.holes_end(); ++h_it){
+                    block.coords.push_back(convert_points(*h_it, offset));
+                }
+                blocks.push_back(block);
+            }
+            return out2str(blocks);
         }
         static Polygon_2 convert_poly(std::vector<Point> &points){
             std::vector<Point_2> pts;
@@ -101,6 +115,14 @@ namespace CenterLine {
             }
             if(pts.front() == pts.back()) pts.pop_back();
             return Polygon_2(pts.begin(), pts.end());
+        }
+        static std::vector<Point> convert_points(const Polygon_2 &poly, Vector_2 offset){
+            std::vector<Point> ans;
+            auto it = poly.vertices_begin();
+            for(;it != poly.vertices_end();++it)
+                ans.emplace_back(CGAL::to_double(it->x() + offset.x()), CGAL::to_double(it->y() + offset.y()));
+            ans.emplace_back(CGAL::to_double(it->x() + offset.x()), CGAL::to_double(it->y() + offset.y()));
+            return ans;
         }
         static Polygon_with_holes_2 geojson_to_poly(std::string geojson){
             parseout res;
@@ -207,7 +229,7 @@ namespace CenterLine {
         rel_remainders = solver.remainders;
         rel_convex_remainders = solver.convex_remainders;
         rel_parts = solver.parts;
-
+        
         return true;
     } // bool PolygonCentrerLine::calcPartition(const Polygon_with_holes_2 &space);
 } // namespace CenterLine

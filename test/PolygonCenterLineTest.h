@@ -6,6 +6,7 @@
 #include <PartitionViewer.h>
 
 #include "PolygonCenterLine.h"
+#include "calculate_partition.h"
 using namespace CenterLine;
 struct PolygonCenterLineTest{
 	using K = CGAL::Exact_predicates_exact_constructions_kernel;
