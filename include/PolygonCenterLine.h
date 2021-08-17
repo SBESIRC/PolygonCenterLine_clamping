@@ -33,8 +33,8 @@ namespace CenterLine {
         using Polygon_with_holes_2 = CGAL::Polygon_with_holes_2<K>;
 
 		using Gps_traits_2 = CGAL::Gps_circle_segment_traits_2<K>;
-		using Offset_polygon_2 = typename Gps_traits_2::Polygon_2;
-		using Offset_polygon_with_holes_2 = typename Gps_traits_2::Polygon_with_holes_2;
+		using Offset_polygon_2 = Gps_traits_2::Polygon_2;
+		using Offset_polygon_with_holes_2 = Gps_traits_2::Polygon_with_holes_2;
 
         using InnerK = CGAL::Simple_cartesian<CGAL::Lazy_exact_nt<CGAL::Gmpfr>>;
         // Gmpq precisions

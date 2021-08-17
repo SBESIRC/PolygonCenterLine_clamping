@@ -104,7 +104,7 @@ namespace CenterLine {
 			std::vector<Point_2> res;
 			CGAL::convex_hull_2(p_set.begin(), p_set.end(), std::back_inserter(res));
 			convex_remainders[indices[a]].clear();
-			convex_remainders[indices[a]].insert(convex_remainders[indices[a]].end(), res.begin(), res.end());
+			convex_remainders[indices[a]].insert(convex_remainders[indices[a]].vertices_end(), res.begin(), res.end());
 			indices[b] = -1;
 			return indices[a];
 		}
