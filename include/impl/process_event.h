@@ -15,7 +15,7 @@ namespace CenterLineSolver{
 					<< std::endl;
 
 		EdgeData *event_a = event.a, *event_b = event.b;
-		/* ÓÃÓÚµ÷ÊÔ»¡ÐÎÇ½
+		/* ï¿½ï¿½ï¿½Úµï¿½ï¿½Ô»ï¿½ï¿½ï¿½Ç½
 		if(event_b->corr_line == 322 || event_a->corr_line == 322){
 			int l_a = event_a->corr_line, l_b = event_b->corr_line;
 			Line_2 line_a = line_data_pool[event_a->corr_line], line_b = line_data_pool[event_b->corr_line];
@@ -72,14 +72,14 @@ namespace CenterLineSolver{
 				Point_2 barycenter = CGAL::ORIGIN + (((*pts[0] - CGAL::ORIGIN) + (*pts[1] - CGAL::ORIGIN) + (*pts[2] - CGAL::ORIGIN)) / 3);
 				FT end_time = CGAL::squared_distance(barycenter, line[0]);
 				int loc_id = locations.size();
-				locations.emplace_back(barycenter, end_time);
+				locations.push_back(Location(barycenter, end_time));
 				data[0]->set_end(loc_id);
 				data[1]->set_end(loc_id);
 				data[2]->set_end(loc_id);
 			}
 		}
 		else if (event.type == EventType::PARALLEL) {
-			/* Êä³ö¹«¹²²¿·Ö TODO: ¸Ä³É´´½¨µã (branches) */
+			/* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ TODO: ï¿½Ä³É´ï¿½ï¿½ï¿½ï¿½ï¿½ (branches) */
 			Point_2 point_l, point_r;
 			Vector_2 vector_l, vector_r;
 			if (l0 < l1)
@@ -99,8 +99,8 @@ namespace CenterLineSolver{
 				vector_r = event_a->to_vector();
 			}
 			int start_loc = locations.size(), end_loc = start_loc + 1;
-			locations.emplace_back(point_l, event.time);
-			locations.emplace_back(point_r, event.time);
+			locations.push_back(Location(point_l, event.time));
+			locations.push_back(Location(point_r, event.time));
 			PointData *inter_seg = new PointData(locations, start_loc, vector_l, vector_r);
 			inter_seg->set_end(end_loc);
 			point_pool.push_back(inter_seg);
@@ -117,9 +117,9 @@ namespace CenterLineSolver{
 				else {
 					cut_half_point(event_a->prev, event_b->next, start_loc, point_pool, edge_pool);
 				}
-				/* if(seg0.source()ºÍseg1.target()ÏàÁÚ){ Ö±½ÓÌø¹ý }
-else if(l0 < l1){ ÓÃseg1.target()µÄÎ»ÖÃ½¨µã£¬ÇÐ¸îseg0£¬ÖØÁ¬ }
-else if(l0 > l1){ ÓÃseg0.source()µÄÎ»ÖÃ½¨µã£¬ÇÐ¸îseg1£¬ÖØÁ¬ }*/
+				/* if(seg0.source()ï¿½ï¿½seg1.target()ï¿½ï¿½ï¿½ï¿½){ Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ }
+else if(l0 < l1){ ï¿½ï¿½seg1.target()ï¿½ï¿½Î»ï¿½Ã½ï¿½ï¿½ã£¬ï¿½Ð¸ï¿½seg0ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ }
+else if(l0 > l1){ ï¿½ï¿½seg0.source()ï¿½ï¿½Î»ï¿½Ã½ï¿½ï¿½ã£¬ï¿½Ð¸ï¿½seg1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ }*/
 			}
 			else {
 				event_a->src_point->set_end(start_loc);
@@ -136,9 +136,9 @@ else if(l0 > l1){ ÓÃseg0.source()µÄÎ»ÖÃ½¨µã£¬ÇÐ¸îseg1£¬ÖØÁ¬ }*/
 				else {
 					cut_half_point(event_b->prev, event_a->next, end_loc, point_pool, edge_pool);
 				}
-				/* if(seg0.source()ºÍseg1.target()ÏàÁÚ){ Ö±½ÓÌø¹ý }
-if(r0 < r1){ ÓÃseg0.target()µÄÎ»ÖÃ½¨µã£¬ÇÐ¸îseg1£¬ÖØÁ¬ }
-else if(r0 > r1){ ÓÃseg1.source()µÄÎ»ÖÃ½¨µã£¬ÇÐ¸îseg0£¬ÖØÁ¬ } */
+				/* if(seg0.source()ï¿½ï¿½seg1.target()ï¿½ï¿½ï¿½ï¿½){ Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ }
+if(r0 < r1){ ï¿½ï¿½seg0.target()ï¿½ï¿½Î»ï¿½Ã½ï¿½ï¿½ã£¬ï¿½Ð¸ï¿½seg1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ }
+else if(r0 > r1){ ï¿½ï¿½seg1.source()ï¿½ï¿½Î»ï¿½Ã½ï¿½ï¿½ã£¬ï¿½Ð¸ï¿½seg0ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ } */
 			}
 			else {
 				event_a->dest_point->set_end(end_loc);
@@ -163,21 +163,21 @@ else if(r0 > r1){ ÓÃseg1.source()µÄÎ»ÖÃ½¨µã£¬ÇÐ¸îseg0£¬ÖØÁ¬ } */
 			}
 			int loc_id = locations.size();
 			if (event_a->prev == event_b->next) {
-				locations.emplace_back(seg0.source(), this->cur_time);
+				locations.push_back(Location(seg0.source(), this->cur_time));
 				cut_half_point(event_b, event_a, loc_id, point_pool, edge_pool);
 			}
 			// else if(l0 < l1){
 			else if (less(l0, l1)) {
-				locations.emplace_back(seg1.target(), this->cur_time);
+				locations.push_back(Location(seg1.target(), this->cur_time));
 				cut_edge(event_a, event_b, event_b->next, loc_id, point_pool, edge_pool);
 			}
 			// else if(l0 > l1){
 			else if (less(l1, l0)) {
-				locations.emplace_back(seg0.source(), this->cur_time);
+				locations.push_back(Location(seg0.source(), this->cur_time));
 				cut_edge(event_b, event_a->prev, event_a, loc_id, point_pool, edge_pool);
 			}
 			else {
-				locations.emplace_back(CGAL::ORIGIN + (seg0.source() - seg1.target()) / 2, this->cur_time);
+				locations.push_back(Location(CGAL::ORIGIN + (seg0.source() - seg1.target()) / 2, this->cur_time));
 				cut_half_point(event_b, event_a, loc_id, point_pool, edge_pool);
 				cut_half_point(event_a->prev, event_b->next, loc_id, point_pool, edge_pool);
 			}

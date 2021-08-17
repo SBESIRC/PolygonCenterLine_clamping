@@ -93,7 +93,7 @@ namespace CenterLine {
 				dump_points(remainder.outer_boundary(), p_set);
 				std::vector<Point_2> convex;
 				CGAL::ch_melkman(p_set.begin(), p_set.end(), std::back_inserter(convex));
-				convex_remainders.emplace_back(convex.begin(), convex.end());
+				convex_remainders.push_back(Polygon_2(convex.begin(), convex.end()));
 			}
 			return true;
 		}

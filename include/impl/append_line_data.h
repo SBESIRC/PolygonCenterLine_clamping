@@ -25,7 +25,7 @@ namespace CenterLineSolver{
             // PointData(const Point_2 &_start_loc, const FT &_start_time, const
             // Vector_2 &src, const Vector_2 &dest);
             int loc_id = locations.size();
-            locations.emplace_back(poly.edge(i).target(), 0);
+            locations.push_back(Location(poly.edge(i).target(), 0));
             PointData *new_point = new PointData(locations, loc_id, src_vector, dest_vector);
 
             src_vector = dest_vector;

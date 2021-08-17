@@ -56,7 +56,7 @@ namespace CenterLineSolver{
                 //std::cout << "p1=" << *p1 << std::endl;
                 if (less(l0, l1)) {
                     loc_id = locations.size();
-                    locations.emplace_back(*p1, this->cur_time);
+                    locations.push_back(Location(*p1, this->cur_time));
                     inter_seg->set_end(loc_id);
                     if (edge->dest_point->end_loc == -1)
                         cut_half_edge(base, edge->next, 0, loc_id, point_pool, edge_pool);
@@ -65,7 +65,7 @@ namespace CenterLineSolver{
                 }
                 else if (less(l1, l0)) {
                     loc_id = locations.size();
-                    locations.emplace_back(*p0, this->cur_time);
+                    locations.push_back(Location(*p0, this->cur_time));
                     inter_seg->set_end(loc_id);
                     if (base->src_point->end_loc == -1)
                         cut_half_edge(edge, base->prev, 1, loc_id, point_pool, edge_pool);
@@ -73,7 +73,7 @@ namespace CenterLineSolver{
                 }
                 else {
                     loc_id = locations.size();
-                    locations.emplace_back(*p0, this->cur_time);
+                    locations.push_back(Location(*p0, this->cur_time));
                     inter_seg->set_end(loc_id);
                     if (base->src_point->end_loc == -1)
                         cut_half_point(base->prev, edge->next, loc_id, point_pool, edge_pool);
@@ -106,7 +106,7 @@ namespace CenterLineSolver{
                    r1 = calc_loc_on_line(bisector, *p1);
                 if (less(r0, r1)) {
                     loc_id = locations.size();
-                    locations.emplace_back(*p0, this->cur_time);
+                    locations.push_back(Location(*p0, this->cur_time));
                     inter_seg->set_end(loc_id);
                     if (base->dest_point->end_loc == -1)
                         cut_half_edge(edge, base->next, 0, loc_id, point_pool, edge_pool);
@@ -114,7 +114,7 @@ namespace CenterLineSolver{
                 }
                 else if (less(r1, r0)) {
                     loc_id = locations.size();
-                    locations.emplace_back(*p1, this->cur_time);
+                    locations.push_back(Location(*p1, this->cur_time));
                     inter_seg->set_end(loc_id);
                     if (edge->src_point->end_loc == -1)
                         cut_half_edge(base, edge->prev, 1, loc_id, point_pool, edge_pool);
@@ -122,7 +122,7 @@ namespace CenterLineSolver{
                 }
                 else {
                     loc_id = locations.size();
-                    locations.emplace_back(*p1, this->cur_time);
+                    locations.push_back(Location(*p1, this->cur_time));
                     inter_seg->set_end(loc_id);
                     if (edge->src_point->end_loc == -1)
                         cut_half_point(edge->prev, base->next, loc_id, point_pool, edge_pool);

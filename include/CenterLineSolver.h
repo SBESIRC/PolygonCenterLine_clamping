@@ -201,6 +201,10 @@ namespace CenterLineSolver {
         void connect_segments();
         void operator()(const Poly_with_holes &polygon);
         CenterLineSolver() { is_debugging = false; }
+        ~CenterLineSolver(){
+            for(auto it : point_data_pool) delete it;
+            for(auto it : edge_data_pool) delete it;
+        }
     }; // CenterLineSolver
 
     // PolygonCenterLine_Implementation
@@ -210,7 +214,7 @@ namespace CenterLineSolver {
         Point_2 point;
         FT time;
         std::vector<std::pair<PointData *, bool>> branches;
-        Location(Point_2 p, FT t) : point(p), time(t) {}
+        Location(const Point_2 &p, FT t) : point(p), time(t) {}
     };
 
     template <typename K, class Poly_with_holes, class Poly>

@@ -4,40 +4,53 @@
 #include "convertKernel.h"
 
 namespace CenterLineSolver {
-    template <typename K>
-    inline typename K::Point_2 get_intersection(const CGAL::Polygon_with_holes_2<K> &poly, typename K::Point_2 point, typename K::Vector_2 direct){
-        using IK = CGAL::Epeck;
-        using IFT = typename IK::FT;
-        KernelConverter::KernelConverter<K, CGAL::Epeck, KernelConverter::NumberConverter<K::FT, IK::FT>> to_exact;
-        KernelConverter::KernelConverter<CGAL::Epeck, K, KernelConverter::NumberConverter<CGAL::Epeck::FT, K::FT, 256>> to_Gmpfr;
-        CGAL::Polygon_with_holes_2<IK> space = to_exact.convert(poly);
-        CGAL::Point_2<IK> p = to_exact(point), *tmp_p, new_p;
-        IFT cur_dis = -1;
-        CGAL::Vector_2<IK> v = to_exact(direct);
-        CGAL::Ray_2<IK> ray(p, v);
-        CGAL::Polygon_2<IK> &outer = space.outer_boundary();
-        std::cout << "polygon = " << outer << std::endl << "ray = " << ray << std::endl;
-        for(auto it = outer.edges_begin(); it != outer.edges_end();++it){
+    using IK = CGAL::Epeck;
+    using IFT = typename IK::FT;
+    inline void get_intersection(const CGAL::Polygon_2<IK> &poly, const CGAL::Ray_2<IK> &ray, typename IK::Point_2 &new_p, IFT &cur_dis){
+        CGAL::Point_2<IK> *tmp_p;
+        CGAL::Segment_2<IK> *tmp_seg;
+        for(auto it = poly.edges_begin(); it != poly.edges_end();++it){
             auto inter = CGAL::intersection(*it, ray);
-            if(inter && (tmp_p = boost::get<CGAL::Point_2<IK>>(&*inter))){
-                IFT dis = CGAL::squared_distance(*tmp_p, p);
+            if(!inter) continue;
+            if((tmp_p = boost::get<CGAL::Point_2<IK>>(&*inter))){
+                IFT dis = CGAL::squared_distance(*tmp_p, ray.source());
                 if(cur_dis < 0 || dis < cur_dis){
                     cur_dis = dis;
                     new_p = *tmp_p;
                 }
             }
-        }
-        for(auto h_it = space.holes_begin(); h_it != space.holes_end();++h_it){
-            for(auto it = h_it->edges_begin();it != h_it->edges_end();++it){
-                auto inter = CGAL::intersection(*it, ray);
-                if(inter && (tmp_p = boost::get<CGAL::Point_2<IK>>(&*inter))){
-                    IFT dis = CGAL::squared_distance(*tmp_p, p);
-                    if(cur_dis < 0 || dis < cur_dis){
-                        cur_dis = dis;
-                        new_p = *tmp_p;
+            else if((tmp_seg = boost::get<CGAL::Segment_2<IK>>(&*inter))){
+                IFT dis_0 = CGAL::squared_distance(tmp_seg->source(), ray.source());
+                IFT dis_1 = CGAL::squared_distance(tmp_seg->target(), ray.source());
+                if(cur_dis < 0 || CGAL::min(dis_0, dis_1) < cur_dis){
+                    if(dis_0 < dis_1){
+                        cur_dis = dis_0;
+                        new_p = tmp_seg->source();
+                    }
+                    else{
+                        cur_dis = dis_1;
+                        new_p = tmp_seg->target();
                     }
                 }
             }
+        }
+    }
+    template <typename K>
+    inline typename K::Point_2 get_intersection(const CGAL::Polygon_with_holes_2<K> &poly, typename K::Point_2 point, typename K::Vector_2 dir){
+        KernelConverter::KernelConverter<K, CGAL::Epeck, KernelConverter::NumberConverter<K::FT, IK::FT>> to_exact;
+        KernelConverter::KernelConverter<CGAL::Epeck, K, KernelConverter::NumberConverter<CGAL::Epeck::FT, K::FT, 256>> to_Gmpfr;
+        CGAL::Polygon_with_holes_2<IK> space = to_exact.convert(poly);
+        CGAL::Point_2<IK> p = to_exact(point), new_p;
+        IFT cur_dis = -1;
+        CGAL::Vector_2<IK> v = to_exact(dir);
+        CGAL::Ray_2<IK> ray(p, v);
+        std::cout << "polygon = " << space << std::endl << "ray = " << ray << std::endl;
+        get_intersection(space.outer_boundary(), ray, new_p, cur_dis);
+        for(auto h_it = space.holes_begin(); h_it != space.holes_end();++h_it)
+            get_intersection(*h_it, ray, new_p, cur_dis);
+        if(cur_dis < 0){
+            std::cerr << "get_intersection(poly, point, dir): no intersection" << std::endl << point << " " << dir << std::endl;
+            throw("get_intersection(poly, point, dir): no intersection");
         }
         return to_Gmpfr(new_p);
     }
@@ -139,7 +152,7 @@ namespace CenterLineSolver {
                         else{
                             Point_2 foot = Line_2(src, used_vector).projection(dest);
                             int turning = locations.size();
-                            locations.emplace_back(foot, (locations[loc_id].time + locations[new_loc].time) / 2);
+                            locations.push_back(Location(foot, (locations[loc_id].time + locations[new_loc].time) / 2));
                             PointData *point0 = new PointData(locations, loc_id, turning, point_data_pool.size());
                             point_data_pool.push_back(point0);
                             PointData *point1 = new PointData(locations, turning, new_loc, point_data_pool.size());
@@ -204,9 +217,9 @@ namespace CenterLineSolver {
                                 foot0 = *tmp_p;
                             }
                             int turning0 = locations.size();
-                            locations.emplace_back(foot0, (locations[loc_id].time * 3 + locations[new_loc].time) / 4);
+                            locations.push_back(Location(foot0, (locations[loc_id].time * 3 + locations[new_loc].time) / 4));
                             int turning1 = locations.size();
-                            locations.emplace_back(foot1, (locations[loc_id].time + locations[new_loc].time * 3) / 4);
+                            locations.push_back(Location(foot1, (locations[loc_id].time + locations[new_loc].time * 3) / 4));
                             PointData *point0 = new PointData(locations, loc_id, turning0, point_data_pool.size());
                             point_data_pool.push_back(point0);
                             PointData *point1 = new PointData(locations, turning0, turning1, point_data_pool.size());
@@ -220,7 +233,7 @@ namespace CenterLineSolver {
                             Point_2 *tmp_p;
                             if(!inter || !(tmp_p = boost::get<Point_2>(&*inter))) throw("no intersection of v0 and v1");
                             int turning = locations.size();
-                            locations.emplace_back(*tmp_p, (locations[loc_id].time + locations[new_loc].time) / 2);
+                            locations.push_back(Location(*tmp_p, (locations[loc_id].time + locations[new_loc].time) / 2));
                             PointData *point0 = new PointData(locations, loc_id, turning, point_data_pool.size());
                             point_data_pool.push_back(point0);
                             PointData *point1 = new PointData(locations, turning, new_loc, point_data_pool.size());
@@ -245,11 +258,16 @@ namespace CenterLineSolver {
             if(degree[loc_id] == 1){
                 std::cout << "leaf point " << locations[loc_id].point << std::endl;
                 std::cout << "vector=" << in_vectors[loc_id][0] << std::endl;
-                Point_2 new_p = get_intersection(*origin_space, locations[loc_id].point, in_vectors[loc_id][0]);
-                int endpoint = locations.size();
-                locations.emplace_back(new_p, locations[loc_id].time);
-                PointData *point0 = new PointData(locations, loc_id, endpoint, point_data_pool.size());
-                point_data_pool.push_back(point0);
+                try{
+                    Point_2 new_p = get_intersection(*origin_space, locations[loc_id].point, in_vectors[loc_id][0]);
+                    size_t endpoint = locations.size();
+                    locations.push_back(Location(new_p, locations[loc_id].time));
+                    PointData *point0 = new PointData(locations, loc_id, endpoint, point_data_pool.size());
+                    point_data_pool.push_back(point0);
+                }
+                catch (const char *str){
+                    std::cerr << "connect_segments error = \n" << str << std::endl;
+                }
             }
         }
     }
