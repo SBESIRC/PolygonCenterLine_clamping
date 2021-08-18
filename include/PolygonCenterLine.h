@@ -119,9 +119,12 @@ namespace CenterLine {
         static std::vector<Point> convert_points(const Polygon_2 &poly, Vector_2 offset){
             std::vector<Point> ans;
             auto it = poly.vertices_begin();
+            if(it == poly.vertices_end()){
+                throw("poly is empty");
+            }
             for(;it != poly.vertices_end();++it)
                 ans.emplace_back(CGAL::to_double(it->x() + offset.x()), CGAL::to_double(it->y() + offset.y()));
-            ans.emplace_back(CGAL::to_double(it->x() + offset.x()), CGAL::to_double(it->y() + offset.y()));
+            ans.emplace_back(CGAL::to_double(poly.vertices_begin()->x() + offset.x()), CGAL::to_double(poly.vertices_begin()->y() + offset.y()));
             return ans;
         }
         static Polygon_with_holes_2 geojson_to_poly(std::string geojson){
