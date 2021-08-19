@@ -12,7 +12,6 @@
 #include <CGAL/intersections.h>
 #include <CGAL/partition_2.h>
 #include <boost/optional/optional_io.hpp>
-#include <CGAL/Straight_skeleton_builder_2.h>
 
 namespace CenterLineSolver {
     static bool is_debugging = false;
@@ -41,14 +40,6 @@ namespace CenterLineSolver {
         using Segment_2 = CGAL::Segment_2<K>;
         using Line_2 = CGAL::Line_2<K>;
         using Ray_2 = CGAL::Ray_2<K>;
-        using Ss = CGAL::Straight_skeleton_2<K>;
-        using Halfedge_iterator = typename Ss::Halfedge_iterator;
-        using Halfedge_handle = typename Ss::Halfedge_handle;
-        using Vertex_handle = typename Ss::Vertex_handle;
-        using Vertex_iterator = typename Ss::Vertex_iterator;
-        using SsBuilderTraits = CGAL::Straight_skeleton_builder_traits_2<K>;
-        using SsBuilder = CGAL::Straight_skeleton_builder_2<SsBuilderTraits, Ss>;
-
         struct PointData;
         struct EdgeData;
         struct Interval;
@@ -60,14 +51,16 @@ namespace CenterLineSolver {
 
         const double CornerCosineThreshold = -0.5;
         const Poly_with_holes *origin_space;
+        std::vector<Line_2> line_data_pool, line_loc;
+        std::vector<Vector_2> line_speed;
         std::vector<PointData *> point_data_pool;
+        std::vector<EdgeData *> edge_data_pool;
         std::priority_queue<Event> events;
         Point_2 top_right; // �ұ߽����ϱ߽磬�����жϽ����Ƿ�����������
         FT cur_time;       // events����pop�����¼��ķ���ʱ��. ��ʼΪ0
         //bool is_debugging;
         std::unordered_map<std::pair<int, int>, Line_2, PairHash> bisector_map;
         // results
-        boost::shared_ptr<Ss> skeleton;
         std::vector<Segment_2> res_segments, sub_segments;
         std::vector<std::pair<FT, FT>> res_seg_dis;
         std::vector<Location> locations;
@@ -208,6 +201,10 @@ namespace CenterLineSolver {
         void connect_segments();
         void operator()(const Poly_with_holes &polygon);
         CenterLineSolver() { is_debugging = false; }
+        ~CenterLineSolver(){
+            for(auto it : point_data_pool) delete it;
+            for(auto it : edge_data_pool) delete it;
+        }
     }; // CenterLineSolver
 
     // PolygonCenterLine_Implementation
@@ -217,8 +214,7 @@ namespace CenterLineSolver {
         Point_2 point;
         FT time;
         std::vector<std::pair<PointData *, bool>> branches;
-        Location(){}
-        Location(Point_2 p, FT t) : point(p), time(t) {}
+        Location(const Point_2 &p, FT t) : point(p), time(t) {}
     };
 
     template <typename K, class Poly_with_holes, class Poly>
@@ -249,24 +245,90 @@ namespace CenterLineSolver {
 
         // get the corresbonding line of every edges;
         // build point_data_pool and edge_data_pool at the same time;
+        line_data_pool.reserve(tot_edges);
+        size_t line_it = 0;
+        line_data_pool.clear();
+        line_loc.clear();
+        line_speed.clear();
+        append_line_data(polygon.outer_boundary(), line_it);
+        for (auto it = polygon.holes_begin(); it != polygon.holes_end(); ++it)
+            append_line_data(*it, line_it);
 
-        SsBuilder ssb;
-        ssb.enter_contour(polygon.outer_boundary().vertices_begin(), polygon.outer_boundary().vertices_end());
-        for(auto hole = polygon.holes_begin();hole != polygon.holes_end();++hole)
-            ssb.enter_contour(hole->vertices_begin(), hole->vertices_end());
-        skeleton = ssb.construct_skeleton();
-        if(!skeleton) throw("skeleton was not correctly constructed");
+        // for each pair of non-adjacent edges, calculate the bisector of them and
+        // when the endpoints of both edges intersect with the bisector. store the
+        // edge pair indexed with the start time of the overlapping interval if it
+        // exists.
+        //				-> as a function: "for a new edge with each edge in
+        //the Iterable list"
+        // TODO: Ԥ�����ٶȣ��������ٶȵ�����
 
-        locations.resize(skeleton->size_of_vertices());
-        point_data_pool.resize(skeleton->size_of_halfedges());
-        for(Vertex_iterator it = skeleton->vertices_begin();it != skeleton->vertices_end();++it){
-            locations[it->id()].point = it->point();
-            locations[it->id()].time = it->time();
+        // set an event for each start time of the overlapping interval of an edge
+        // pair.
+        while (!events.empty())
+            events.pop();
+        cur_time = 0;
+        for (auto e_it : edge_data_pool) {
+            append_collision_events(e_it);
         }
-        for(Halfedge_iterator it = skeleton->halfedges_begin();it != skeleton->halfedges_end();++it){
-            // TODO
+
+        // fetch an event at a time in chronological order:
+        // if(edge0.is_active() && edge1.is_active())
+        // > case edge vs edge: split the edges (or maybe endpoints)
+        //		(ƽ������:ֱ����ֹԭ���Ķ˵�켣��Ȼ������ཻ��Ƭ�Σ��ٰѶ����Ƭ�ν�ȡ�������ؽ������)
+        // > case edge vs point: split the edge; split the point
+        //		(����λ��λ��ĳ���߶��ڲ�:
+        //������߶β�����룬Ȼ���õ���ֹ�����ѳ�������ֱ������ߵ�edgeƬ���࣬�ؽ������)
+        // > case point vs point: modify the linking relation of points and edges;
+        //		(����λ��Ϊ�����߶εĶ���:
+        //��ֹ��������켣���ؽ��µĶ��㣬�������Ӷ����)
+        // change the speed of new points
+        // for new edges: call "append_collision_events"
+
+        const char *error = NULL;
+        try {
+            while (!events.empty()) {
+                Event event = events.top();
+                events.pop();
+                if (!event.is_active())
+                    continue;
+
+                this->process_event(event);
+                if(is_debugging){
+                    std::cout << "segments:=====================================" << std::endl;
+                    for (size_t i = 0; i < point_data_pool.size(); ++i) std::cout << i << ": " << point_data_pool[i]->source() << " => " << point_data_pool[i]->target() << std::endl;
+                }
+            }
+        }
+        catch (const char *str) {
+            std::cerr << "unexpectedly exit: " << str << std::endl;
+            error = str;
         }
 
+        for(int i = 0;i < (int) point_data_pool.size(); ++i) point_data_pool[i]->point_id = i;
+
+        std::cout << "segments:=====================================" << std::endl;
+        for (size_t i = 0; i < point_data_pool.size(); ++i)
+            std::cout << i << ": " << point_data_pool[i]->source() << " => " << point_data_pool[i]->target() << std::endl;
+
+        std::unordered_map<PointData *, int> pd_id;
+        pd_id[(PointData *)0] = -1;
+        for (size_t i = 0; i < point_data_pool.size(); ++i)
+            pd_id[point_data_pool[i]] = i;
+        for (size_t i = 0; i < point_data_pool.size(); ++i) {
+            std::cout << i << " : " << std::endl;
+            PointData *pd = point_data_pool[i];
+            std::cout << pd->src_vector << " " << pd->dest_vector << std::endl;
+            std::cout << "<< " << locations[pd->start_loc].branches.size() << std::endl;
+            //for (auto p : locations[pd->start_loc].branches)
+            //    std::cout << "<" << pd_id[p.first] << ", " << p.second << ") ";
+            //std::cout << std::endl
+            //          << ">> ";
+            //for (auto p : locations[pd->end_loc].branches)
+            //    std::cout << "<" << pd_id[p.first] << ", " << p.second << ") ";
+            //std::cout << std::endl;
+        }
+
+        // ��ȫ����
         try{
             this->connect_segments();
         }
@@ -293,6 +355,8 @@ namespace CenterLineSolver {
             else
                 this->sub_segments.emplace_back(it->source(), it->target());
         }
+        if (error)
+            throw(error);
     }
 } // namespace CenterLineSolver
 
