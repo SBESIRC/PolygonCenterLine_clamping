@@ -131,36 +131,18 @@ namespace CenterLine
 		Json::Value root, features;
 		Json::Value feature, geometry, polygon, coords, point, pc;
 		for (const auto &block : rect_blocks) {
-			//coords = dump_block(block);
 			geometry["type"] = "Polygon";
-			//geometry["coordinates"] = coords;
-			for(auto &lst : block.coords){
-				coords.clear();
-				for(auto p : lst){
-					point.clear();
-					point.append(p.x); point.append(p.y);
-					coords.append(point);
-				}
-				geometry["coordinates"].append(coords);
-			}
+			coords = dump_block(block);
+			geometry["coordinates"] = coords;
 			feature["type"] = "Feature";
 			feature["geometry"] = geometry;
 			feature["properties"]["is_centerline_covered"] = false;
 			features.append(feature);
 		}
 		for (const auto &block : centerline_blocks) {
-			//coords = dump_block(block);
 			geometry["type"] = "Polygon";
-			//geometry["coordinates"] = coords;
-			for(auto &lst : block.coords){
-				coords.clear();
-				for(auto p : lst){
-					point.clear();
-					point.append(p.x); point.append(p.y);
-					coords.append(point);
-				}
-				geometry["coordinates"].append(coords);
-			}
+			coords = dump_block(block);
+			geometry["coordinates"] = coords;
 			feature["type"] = "Feature";
 			feature["geometry"] = geometry;
 			feature["properties"]["is_centerline_covered"] = true;

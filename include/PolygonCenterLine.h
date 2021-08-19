@@ -198,7 +198,7 @@ namespace CenterLine {
             segment_dis.emplace_back(res_nt_converter(p.first), res_nt_converter(p.second));
         }
         for(auto p_it : solver.locations){
-            point_contour_distance.push_back(CGAL::sqrt(p_it.time));
+            point_contour_distance.push_back(res_nt_converter(CGAL::sqrt(p_it.time)));
         }
         std::sort(point_contour_distance.begin(), point_contour_distance.end());
         std::vector<FT>::iterator it = std::unique(point_contour_distance.begin(), point_contour_distance.end());
