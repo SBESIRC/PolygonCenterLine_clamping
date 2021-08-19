@@ -38,7 +38,7 @@ namespace CenterLine {
 
         using InnerK = CGAL::Simple_cartesian<CGAL::Lazy_exact_nt<CGAL::Gmpfr>>;
         // Gmpq precisions
-        static const int _input_precision = 20; // Ð¡Êýµãºó20¶þ½øÖÆ£¬Ô¼1e-6
+        static const int _input_precision = 20; // Ð¡ï¿½ï¿½ï¿½ï¿½ï¿½20ï¿½ï¿½ï¿½ï¿½ï¿½Æ£ï¿½Ô¼1e-6
 
         KernelConverter::NumberConverter<K::FT, InnerK::FT, _input_precision> nt_converter;
         KernelConverter::NumberConverter<InnerK::FT, K::FT> res_nt_converter;
@@ -54,7 +54,7 @@ namespace CenterLine {
         std::vector<std::pair<FT, FT>> segment_dis;
         std::vector<Offset_polygon_with_holes_2> rel_remainders;
         std::vector<Polygon_2> rel_convex_remainders;
-        std::vector<Polygon_with_holes_2> rel_parts;
+        std::vector<Polygon_with_holes_2> rel_parts, centerline_parts;
 
         void init()
         {
@@ -63,7 +63,7 @@ namespace CenterLine {
         }
 
     public:
-        // input_precision: ´Óto_double(K)×ª»¯ÎªGmpfrÊ±µÄ¾«¶È; inner_precision: ÄÚ²¿ÔËËãÊ±µÄÄ¬ÈÏ¾«¶È
+        // input_precision: ï¿½ï¿½to_double(K)×ªï¿½ï¿½ÎªGmpfrÊ±ï¿½Ä¾ï¿½ï¿½ï¿½; inner_precision: ï¿½Ú²ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½Ä¬ï¿½Ï¾ï¿½ï¿½ï¿½
         PolygonCenterLine()
         {
             CGAL::Gmpfr::set_default_precision(256);
@@ -79,7 +79,7 @@ namespace CenterLine {
         bool calcPartition(FT R);
         std::string centerline_geojson() const { return segments_to_geojson(_segments); }
         std::string sub_centerline_geojson() const { return segments_to_geojson(_sub_segments); }
-        std::string parts_geojson() const { return multipoly_to_geojson(rel_parts, polygon_offset); }
+        std::string parts_geojson() const { return multipoly_to_geojson(rel_parts, centerline_parts, polygon_offset); }
 
 
         static std::string segments_to_geojson(const std::vector<Segment_2> &segs){
@@ -92,17 +92,25 @@ namespace CenterLine {
             }
             return out2str(res);
         }
-        static std::string multipoly_to_geojson(const std::vector<Polygon_with_holes_2> &polygons, Vector_2 offset = Vector_2(0, 0)){
-            std::vector<Block> blocks;
+        static std::string multipoly_to_geojson(const std::vector<Polygon_with_holes_2> &polygons, const std::vector<Polygon_with_holes_2> &centerline_parts, Vector_2 offset = Vector_2(0, 0)){
+            std::vector<Block> rect_blocks, centerline_blocks;
             for(auto &polygon : polygons){
                 Block block;
                 block.coords.push_back(convert_points(polygon.outer_boundary(), offset));
                 for(auto h_it = polygon.holes_begin(); h_it != polygon.holes_end(); ++h_it){
                     block.coords.push_back(convert_points(*h_it, offset));
                 }
-                blocks.push_back(block);
+                rect_blocks.push_back(block);
             }
-            return out2str(blocks);
+            for(auto &polygon : centerline_parts){
+                Block block;
+                block.coords.push_back(convert_points(polygon.outer_boundary(), offset));
+                for(auto h_it = polygon.holes_begin(); h_it != polygon.holes_end(); ++h_it){
+                    block.coords.push_back(convert_points(*h_it, offset));
+                }
+                centerline_blocks.push_back(block);
+            }
+            return out2str(rect_blocks, centerline_blocks);
         }
         static Polygon_2 convert_poly(std::vector<Point> &points){
             std::vector<Point_2> pts;
@@ -232,6 +240,7 @@ namespace CenterLine {
         rel_remainders = solver.remainders;
         rel_convex_remainders = solver.convex_remainders;
         rel_parts = solver.parts;
+        centerline_parts = solver.cencerline_parts;
         
         return true;
     } // bool PolygonCentrerLine::calcPartition(const Polygon_with_holes_2 &space);

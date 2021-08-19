@@ -41,7 +41,7 @@ namespace CenterLine {
 		std::vector<Polygon_2> convex_remainders;
 		std::vector<CGAL::Bbox_2> boxes;
 		std::vector<std::vector<size_t>> remainders_in_box;
-		std::vector<Polygon_with_holes_2> parts;
+		std::vector<Polygon_with_holes_2> parts, cencerline_parts;
 
 		const double err_bound = 1e-8;
 
@@ -228,6 +228,10 @@ namespace CenterLine {
 					if(ok) this->parts.push_back(part);
 				}
 			}
+			CGAL::Polygon_set_2<K> U(space), S;
+			for(auto &part : this->parts) S.join(part);
+			U.difference(S);
+			U.polygons_with_holes(std::back_inserter(this->cencerline_parts));
 			return true;
 		}
 	}; // struct ParititonSolver

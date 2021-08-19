@@ -121,6 +121,8 @@ struct PolygonCenterLineTest{
 			}
 			new_window.drawPoly(centerline.relative_segments, c, CGAL::Color(255, 255, 0, 127));
 
+			std::cout << "ans=" << centerline.parts_geojson() << std::endl;
+
 			mainwindow.show();
 			new_window.show();
 			app.exec();

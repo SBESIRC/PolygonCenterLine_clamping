@@ -117,28 +117,55 @@ namespace CenterLine
 			for(auto p : lst){
 				point.clear();
 				point.append(p.x); point.append(p.y);
-				poly.append(poly);
+				poly.append(point);
 			}
 			polys.append(poly);
 		}
 		return polys;
 	}
-	std::string out2str(const std::vector<Block> &blocks) {
+	std::string out2str(const std::vector<Block> &rect_blocks, const std::vector<Block> &centerline_blocks) {
 		//auto pt = out.p;
 		//auto type = out.type;
 		//auto oS = out.oS;
 		//double sample_degree = pi / sample_num;
-		Json::Value root, features, lst;
+		Json::Value root, features;
 		Json::Value feature, geometry, polygon, coords, point, pc;
-		for (const auto &block : blocks) {
-			coords.append(dump_block(block));
+		for (const auto &block : rect_blocks) {
+			//coords = dump_block(block);
+			geometry["type"] = "Polygon";
+			//geometry["coordinates"] = coords;
+			for(auto &lst : block.coords){
+				coords.clear();
+				for(auto p : lst){
+					point.clear();
+					point.append(p.x); point.append(p.y);
+					coords.append(point);
+				}
+				geometry["coordinates"].append(coords);
+			}
+			feature["type"] = "Feature";
+			feature["geometry"] = geometry;
+			feature["properties"]["is_centerline_covered"] = false;
+			features.append(feature);
 		}
-		geometry["type"] = "MultiPolygon";
-		geometry["coordinates"] = coords;
-		feature["type"] = "Feature";
-		feature["geometry"] = geometry;
-		features.append(feature);
-
+		for (const auto &block : centerline_blocks) {
+			//coords = dump_block(block);
+			geometry["type"] = "Polygon";
+			//geometry["coordinates"] = coords;
+			for(auto &lst : block.coords){
+				coords.clear();
+				for(auto p : lst){
+					point.clear();
+					point.append(p.x); point.append(p.y);
+					coords.append(point);
+				}
+				geometry["coordinates"].append(coords);
+			}
+			feature["type"] = "Feature";
+			feature["geometry"] = geometry;
+			feature["properties"]["is_centerline_covered"] = true;
+			features.append(feature);
+		}
 		root["features"] = features;
 		root["type"] = "FeatureCollection";
 		return root.toStyledString();
