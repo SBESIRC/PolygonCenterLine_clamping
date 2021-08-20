@@ -4,7 +4,7 @@
 cmake_minimum_required (VERSION 3.17)
 project ("PolygonCenterLine")
 find_package(CGAL CONFIG REQUIRED COMPONENTS Qt5)
-find_package(jsoncpp REQUIRED)
+find_package(jsoncpp CONFIG REQUIRED)
 add_definitions(-DCGAL_USE_BASIC_VIEWER -DQT_NO_KEYWORDS)
 
 # 将源代码添加到此项目的可执行文件
@@ -20,7 +20,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 add_library(PolygonCenterLine STATIC ${lib_src} ${header_files} ${header_impl})
 target_include_directories(PolygonCenterLine PUBLIC include PUBLIC "./libraries")
-target_link_libraries(PolygonCenterLine PUBLIC CGAL::CGAL PUBLIC CGAL::CGAL_Qt5 PUBLIC jsoncpp_lib)
+target_link_libraries(PolygonCenterLine PUBLIC CGAL::CGAL PUBLIC CGAL::CGAL_Qt5 PUBLIC jsoncpp_lib jsoncpp_object)
 
 # only for testing
 add_executable (PolygonCenterLineTest "test/PolygonCenterLineTest.cpp"  ${test_headers})
