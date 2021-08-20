@@ -179,11 +179,13 @@ namespace CenterLineSolver {
                                 }
                                 else if(Sin0 * Sin1 < 0) {
                                     used_v0 = v0; used_v1 = -v1;
-                                    cur_value = -Sin0 * Sin1;
+                                    //cur_value = -Sin0 * Sin1;
+                                    cur_value = Cosine(v0, -v1);
                                 }
                                 else{
                                     used_v0 = v0; used_v1 = -v1;
-                                    cur_value = Cosine(v0, -v1);
+                                    FT tmp = Sine(v0, -v1);
+                                    cur_value = 2 * tmp * tmp;
                                 }
                                 if(cur_value > value){
                                     value = cur_value;

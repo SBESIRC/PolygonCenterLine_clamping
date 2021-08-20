@@ -88,10 +88,12 @@ namespace CGAL {
 					L = c_it->source().x(), R = c_it->target().x();
 					Intersection_map intersect_map;
 					Intersect_2 intersect_solver(intersect_map);
+                    FT fl = trans_nt<CoordNT, FT>(L), fr = trans_nt<CoordNT, FT>(R);
 					for(int i = 1;i < 8;++i){
 						std::vector<CGAL::Object> pts;
 						std::pair<One_root_point_2, typename Gps_traits_2::Multiplicity> p;
-						FT x = trans_nt<CoordNT, FT>((R * i + L * (8 - i)) / 8);
+						//FT x = (R * i + L * (8 - i)) / 8);
+                        FT x = (fr * i + fl * (8 - i)) / 8;
 						X_monotone_curve_2 vert(Point_2(x, box.ymin() - 10), Point_2(x, box.ymax() + 10));
 						intersect_solver(*c_it, vert, std::back_inserter(pts));
 						if(!pts.empty() && assign(p, pts[0])){

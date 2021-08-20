@@ -129,10 +129,20 @@ namespace CenterLine
 		//auto oS = out.oS;
 		//double sample_degree = pi / sample_num;
 		Json::Value root, features;
-		Json::Value feature, geometry, polygon, coords, point, pc;
+		Json::Value feature, geometry, poly, coords, point, pc;
 		for (const auto &block : rect_blocks) {
 			geometry["type"] = "Polygon";
-			coords = dump_block(block);
+			//coords = dump_block(block);
+			coords.clear();
+			for(auto lst : block.coords){
+				poly.clear();
+				for(auto p : lst){
+					point.clear();
+					point.append(p.x); point.append(p.y);
+					poly.append(point);
+				}
+				coords.append(poly);
+			}
 			geometry["coordinates"] = coords;
 			feature["type"] = "Feature";
 			feature["geometry"] = geometry;
@@ -141,7 +151,17 @@ namespace CenterLine
 		}
 		for (const auto &block : centerline_blocks) {
 			geometry["type"] = "Polygon";
-			coords = dump_block(block);
+			//coords = dump_block(block);
+			coords.clear();
+			for(auto lst : block.coords){
+				poly.clear();
+				for(auto p : lst){
+					point.clear();
+					point.append(p.x); point.append(p.y);
+					poly.append(point);
+				}
+				coords.append(poly);
+			}
 			geometry["coordinates"] = coords;
 			feature["type"] = "Feature";
 			feature["geometry"] = geometry;

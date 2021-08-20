@@ -106,7 +106,7 @@ namespace CenterLine {
 			convex_remainders[indices[a]].clear();
 			convex_remainders[indices[a]].insert(convex_remainders[indices[a]].vertices_end(), res.begin(), res.end());
 			indices[b] = -1;
-			return indices[a];
+			return a;
 		}
 		void merge_opposite_ch(){
 			std::vector<size_t> ch_id;
@@ -156,8 +156,8 @@ namespace CenterLine {
 					if(mn < mx) range_info.push_back(std::make_pair(std::make_pair(mn, mx), j));
 				}
 				std::sort(range_info.begin(), range_info.end());
-				std::cout << "range_info = " << std::endl;
-				for(auto info : range_info){ std::cout << info.first.first << " "  << info.first.second << "\n" << convex_remainders[ch_id[info.second]]; }
+				//std::cout << "range_info = " << std::endl;
+				//for(auto info : range_info){ std::cout << info.first.first << " "  << info.first.second << "\n" << convex_remainders[ch_id[info.second]]; }
 				if(range_info.size() < 2) continue;
 				FT cur_r = range_info[0].first.second;
 				size_t cur_ch = 0;

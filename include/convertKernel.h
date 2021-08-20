@@ -21,13 +21,6 @@ namespace KernelConverter {
             return NewK(CGAL::to_double(a));
         }
     };
-    template <typename K>
-    struct NumberConverter<K, double> : public std::unary_function<K, double> {
-        double operator()(const K &a) const
-        {
-            return CGAL::to_double(a);
-        }
-    };
     template<typename K, typename NewK>
     struct NumberConverter<CGAL::Lazy_exact_nt<K>, NewK> : public std::unary_function<CGAL::Lazy_exact_nt<K>, NewK> {
         typename NewK operator () (const typename CGAL::Lazy_exact_nt<K> &a) const{

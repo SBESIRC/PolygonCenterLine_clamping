@@ -17,11 +17,12 @@ int main(int argc, char *argv[])
     //CenterLine::PolygonCenterLine centerline(argv[1]);
     char filename[1024];
     //for(int i = 173;i <= 210;++i){
-    for(int i = 1;i <= 10;++i){
+    //for(int i = 12;i <= 20;++i){
+    for(int i = 1;i <= 210;++i){
         sprintf(filename, argv[1], i);
         PolygonCenterLineTest centerline(filename, i);
         centerline.showCenterLine();
-        centerline.showPartition(0);
+        //centerline.showPartition(0);
     }
     //double interval = 1;
     //if(argc >= 3){

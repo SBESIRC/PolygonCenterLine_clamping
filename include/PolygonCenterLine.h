@@ -8,6 +8,7 @@ before including this file in exactly one source file.
 #include <string>
 #include <vector>
 
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel_with_sqrt.h>
 #include <CGAL/Lazy_exact_nt.h>
@@ -15,6 +16,8 @@ before including this file in exactly one source file.
 #include <CGAL/Polygon_2.h>
 #include <CGAL/Polygon_2_algorithms.h>
 #include <CGAL/Polygon_with_holes_2.h>
+#include <CGAL/Filtered_kernel.h>
+#include <CGAL/Triangulation_structural_filtering_traits.h>
 
 #include "CenterLineSolver.h"
 #include "PartitionSolver.h"
@@ -36,19 +39,31 @@ namespace CenterLine {
 		using Offset_polygon_2 = Gps_traits_2::Polygon_2;
 		using Offset_polygon_with_holes_2 = Gps_traits_2::Polygon_with_holes_2;
 
-        using InnerK = CGAL::Simple_cartesian<CGAL::Lazy_exact_nt<CGAL::Gmpfr>>;
+        //using NType = CGAL::Gmpfr;
+        //class InnerK : public CGAL::Filtered_kernel_adaptor<CGAL::Type_equality_wrapper<CGAL::Simple_cartesian<NType>::Base<InnerK>::Type, InnerK>,
+        //#ifdef CGAL_NO_STATIC_FILTERS
+        //            false >
+        //#else
+        //            true >
+        //#endif
+        //{};
+        //using InnerK = CGAL::Filtered_kernel_adaptor<CGAL::Simple_cartesian<NType>>;
+        using InnerK = CGAL::Epick;
         // Gmpq precisions
         static const int _input_precision = 20; // С�����20�����ƣ�Լ1e-6
 
-        KernelConverter::NumberConverter<K::FT, InnerK::FT, _input_precision> nt_converter;
+        //KernelConverter::NumberConverter<K::FT, InnerK::FT, _input_precision> nt_converter;
+        KernelConverter::NumberConverter<K::FT, InnerK::FT> nt_converter;
         KernelConverter::NumberConverter<InnerK::FT, K::FT> res_nt_converter;
         KernelConverter::KernelConverter<InnerK, K, KernelConverter::NumberConverter<InnerK::FT, K::FT>> result_converter;
-        KernelConverter::KernelConverter<K, InnerK, KernelConverter::NumberConverter<K::FT, InnerK::FT, _input_precision>> kernel_converter;
+        //KernelConverter::KernelConverter<K, InnerK, KernelConverter::NumberConverter<K::FT, InnerK::FT, _input_precision>> kernel_converter;
+        KernelConverter::KernelConverter<K, InnerK, KernelConverter::NumberConverter<K::FT, InnerK::FT>> kernel_converter;
 
         Polygon_with_holes_2 relative_poly;
         Vector_2 polygon_offset;
         std::vector<FT> point_contour_distance;
         // results:
+        size_t seg_cnt_before_connect;
         std::vector<Segment_2> relative_segments, relative_sub_segments;
         std::vector<Segment_2> _segments, _sub_segments;
         std::vector<std::pair<FT, FT>> segment_dis;
@@ -80,7 +95,6 @@ namespace CenterLine {
         std::string centerline_geojson() const { return segments_to_geojson(_segments); }
         std::string sub_centerline_geojson() const { return segments_to_geojson(_sub_segments); }
         std::string parts_geojson() const { return multipoly_to_geojson(rel_parts, centerline_parts, polygon_offset); }
-
 
         static std::string segments_to_geojson(const std::vector<Segment_2> &segs){
             std::vector<std::pair<Point, Point>> res;
@@ -192,13 +206,20 @@ namespace CenterLine {
         }
 
         relative_segments.clear(); relative_sub_segments.clear(); segment_dis.clear();
+        this->seg_cnt_before_connect = solver.seg_cnt_before_connect;
         std::transform(solver.res_segments.begin(), solver.res_segments.end(), std::back_inserter(relative_segments), result_converter);
         std::transform(solver.sub_segments.begin(), solver.sub_segments.end(), std::back_inserter(relative_sub_segments), result_converter);
         for(auto p : solver.res_seg_dis){
             segment_dis.emplace_back(res_nt_converter(p.first), res_nt_converter(p.second));
         }
-        for(auto p_it : solver.locations){
-            point_contour_distance.push_back(res_nt_converter(CGAL::sqrt(p_it.time)));
+        for(auto p_it : solver.point_data_pool) if(p_it->is_ans) {
+            FT x = res_nt_converter(p_it->start_time());
+            x = int(CGAL::to_double(x) / 20 + 0.5) * 20;
+            point_contour_distance.push_back(x);
+
+            x = res_nt_converter(p_it->end_time());
+            x = int(CGAL::to_double(x) / 20 + 0.5) * 20;
+            point_contour_distance.push_back(x);
         }
         std::sort(point_contour_distance.begin(), point_contour_distance.end());
         std::vector<FT>::iterator it = std::unique(point_contour_distance.begin(), point_contour_distance.end());

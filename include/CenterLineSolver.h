@@ -68,6 +68,7 @@ namespace CenterLineSolver {
         std::unordered_map<std::pair<int, int>, Line_2, PairHash> bisector_map;
         // results
         boost::shared_ptr<Ss> skeleton;
+        size_t seg_cnt_before_connect;
         std::vector<Segment_2> res_segments, sub_segments;
         std::vector<std::pair<FT, FT>> res_seg_dis;
         std::vector<Location> locations;
@@ -96,6 +97,10 @@ namespace CenterLineSolver {
         static FT Cosine(const Vector_2 &a, const Vector_2 &b)
         {
             return inner_product(a, b) / CGAL::sqrt(a.squared_length() * b.squared_length());
+        }
+        static FT Sine(const Vector_2 &a, const Vector_2 &b)
+        {
+            return outer_product(a, b) / CGAL::sqrt(a.squared_length() * b.squared_length());
         }
         static Vector_2 calc_real_speed(const Vector_2 &src_vector, const Vector_2 &dest_vector)
         {
@@ -258,15 +263,43 @@ namespace CenterLineSolver {
         if(!skeleton) throw("skeleton was not correctly constructed");
 
         locations.resize(skeleton->size_of_vertices());
-        point_data_pool.resize(skeleton->size_of_halfedges());
+        unordered_map<int, int> index;
+        std::cout << "size = " << skeleton->size_of_vertices() << std::endl;
+        int cnt = 0;
         for(Vertex_iterator it = skeleton->vertices_begin();it != skeleton->vertices_end();++it){
-            locations[it->id()].point = it->point();
-            locations[it->id()].time = it->time();
+            index[it->id()] = cnt;
+            locations[cnt].point = it->point();
+            locations[cnt].time = it->time();
+            ++cnt;
         }
-        for(Halfedge_iterator it = skeleton->halfedges_begin();it != skeleton->halfedges_end();++it){
-            // TODO
+        for(Halfedge_iterator it = skeleton->halfedges_begin();it != skeleton->halfedges_end();++it) if(it->is_bisector()) {
+            Vertex_handle from = it->opposite()->vertex(), to = it->vertex();
+            Halfedge_handle l = it->defining_contour_edge(), r = it->opposite()->defining_contour_edge();
+            if(index[from->id()] < index[to->id()]){
+                if(from->time() > to->time()){
+                    swap(from, to);
+                    swap(l, r);
+                }
+                int e_id = point_data_pool.size();
+                PointData *edge = new PointData(locations, index[from->id()], index[to->id()], e_id);
+                point_data_pool.push_back(edge);
+                std::cout << "edge = " << from->point() << " " << to->point() << std::endl;
+                Vector_2 v_l = l->vertex()->point() - l->opposite()->vertex()->point();
+                Vector_2 v_r = r->vertex()->point() - r->opposite()->vertex()->point();
+                std::cout << "l = " << l->opposite()->vertex()->point() << " " << l->vertex()->point() << std::endl;
+                std::cout << "r = " << r->opposite()->vertex()->point() << " " << r->vertex()->point() << std::endl;
+                std::cout << "v_l = " << v_l << "\nv_r = " << v_r << std::endl;
+                FT inner = v_l.x() * v_r.x() + v_l.y() * v_r.y();
+                FT outer = v_l.x() * v_r.y() - v_l.y() * v_r.x();
+                FT absolute_scale = v_l.squared_length() * v_r.squared_length();
+                edge->is_ans = (inner < 0 && outer >= 0 && inner * inner * 4 >= absolute_scale);
+                std::cout << edge->is_ans << std::endl;
+                locations[index[from->id()]].branches.emplace_back(edge, 0);
+                locations[index[to->id()]].branches.emplace_back(edge, 1);
+            }
         }
 
+        size_t sep = point_data_pool.size();
         try{
             this->connect_segments();
         }
@@ -277,6 +310,7 @@ namespace CenterLineSolver {
         int counter = 0;
         for (PointData *it : point_data_pool) {
             ++counter;
+            if(counter - 1 == sep) this->seg_cnt_before_connect = this->res_segments.size();
             if (it->end_loc == -1) {
                 std::cout << "point " << counter - 1 << "not ended" << std::endl;
                 continue;

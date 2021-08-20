@@ -31,7 +31,7 @@ struct PolygonCenterLineTest{
     /// calculate centerlines and show them
     void showCenterLine(){
 		std::vector<Point_2> points;
-        std::vector<std::pair<int, int>> segs, sub_segs;
+        std::vector<std::pair<int, int>> segs, new_segs, sub_segs;
         std::vector<Polygon_2> PolyParts;
         int argc = 1;
         const char* argv[2]={"t2_viewer","\0"};
@@ -41,6 +41,7 @@ struct PolygonCenterLineTest{
             Polygon_with_holes_2 &space = PolygonCenterLine::geojson_to_poly(geojson);
 			points.clear();
 			segs.clear();
+			new_segs.clear();
 			sub_segs.clear();
 			PolyParts.clear();
 
@@ -68,10 +69,15 @@ struct PolygonCenterLineTest{
 			auto unique_end = std::unique(points.begin(), points.end());
 			points.erase(unique_end, points.end());
 
-			for(auto &seg : result){
-				int a = std::lower_bound(points.begin(), points.end(), seg.source()) - points.begin();
-				int b = std::lower_bound(points.begin(), points.end(), seg.target()) - points.begin();
+			for(size_t i = 0;i < centerline.seg_cnt_before_connect;++i){
+				int a = std::lower_bound(points.begin(), points.end(), result[i].source()) - points.begin();
+				int b = std::lower_bound(points.begin(), points.end(), result[i].target()) - points.begin();
 				segs.emplace_back(a, b);
+			}
+			for(size_t i = centerline.seg_cnt_before_connect;i < result.size();++i){
+				int a = std::lower_bound(points.begin(), points.end(), result[i].source()) - points.begin();
+				int b = std::lower_bound(points.begin(), points.end(), result[i].target()) - points.begin();
+				new_segs.emplace_back(a, b);
 			}
 			for(auto &seg : sub_line){
 				int a = std::lower_bound(points.begin(), points.end(), seg.source()) - points.begin();
@@ -83,6 +89,7 @@ struct PolygonCenterLineTest{
 			CGAL::CenterLineViewer<Polygon_2> mainwindow(app.activeWindow(), *PolyParts.begin(), title.c_str());
 			mainwindow.drawPartitions(PolyParts);
 			mainwindow.drawTree(points, segs);
+			mainwindow.drawTree(points, new_segs, CGAL::Color(255, 127, 127));
 			mainwindow.drawTree(points, sub_segs, CGAL::Color(0, 255, 127));
 			mainwindow.show();
 			app.exec();
