@@ -5,8 +5,8 @@
 
 namespace CenterLineSolver {
     using IK = CGAL::Epeck;
-    using IFT = typename IK::FT;
-    inline void get_intersection(const CGAL::Polygon_2<IK> &poly, const CGAL::Ray_2<IK> &ray, typename IK::Point_2 &new_p, IFT &cur_dis){
+    using IFT = IK::FT;
+    inline void get_intersection(const CGAL::Polygon_2<IK> &poly, const CGAL::Ray_2<IK> &ray, IK::Point_2 &new_p, IFT &cur_dis){
         CGAL::Point_2<IK> *tmp_p;
         CGAL::Segment_2<IK> *tmp_seg;
         for(auto it = poly.edges_begin(); it != poly.edges_end();++it){
