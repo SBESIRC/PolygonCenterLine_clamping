@@ -332,6 +332,7 @@ namespace CenterLineSolver {
             else
                 this->sub_segments.emplace_back(it->source(), it->target());
         }
+        if(point_data_pool.size() == sep) this->seg_cnt_before_connect = this->res_segments.size();
     }
 } // namespace CenterLineSolver
 

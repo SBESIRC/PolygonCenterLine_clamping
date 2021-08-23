@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     char filename[1024];
     //for(int i = 173;i <= 210;++i){
     //for(int i = 12;i <= 20;++i){
-    for(int i = 1;i <= 210;++i){
+    for(int i = 1;i <= 212;++i){
         sprintf(filename, argv[1], i);
         PolygonCenterLineTest centerline(filename, i);
         centerline.showCenterLine();

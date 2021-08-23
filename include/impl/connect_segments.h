@@ -54,6 +54,37 @@ namespace CenterLineSolver {
         }
         return to_Gmpfr(new_p);
     }
+    template<typename K>
+    inline bool evalDirection(CGAL::Vector_2<K> from, CGAL::Vector_2<K> base_v, CGAL::Vector_2<K> &used_vector, typename K::FT &value){
+        using FT = typename K::FT;
+        using Solver = CenterLineSolver<K, CGAL::Polygon_with_holes_2<K>, CGAL::Polygon_2<K>>;
+        bool upd = false;
+        FT Cos = Solver::Cosine(base_v, from);
+        if(Solver::equal(Cos, 1)) {
+            if(value < 1){
+                used_vector = base_v;
+                value = 1;
+                upd = true;
+            }
+        }
+        else if(Cos >= 0){
+            if(value < Cos){
+                used_vector = from;
+                value = Cos;
+                upd = true;
+            }
+        }
+        else if(value < Cos) {
+            used_vector = base_v;
+            value = Cos;
+            upd = true;
+        }
+        return upd;
+    }
+    template<typename K>
+    inline typename K::FT evalDirection(CGAL::Vector_2<K> from, CGAL::Vector_2<K> base_v, CGAL::Vector_2<K> to){
+
+    }
     template <typename K, class Poly_with_holes, class Poly>
     inline void CenterLineSolver<K, Poly_with_holes, Poly>::connect_segments(){
         for(int i = 0;i < locations.size();++i){
@@ -126,23 +157,7 @@ namespace CenterLineSolver {
                         Vector_2 used_vector;
                         FT value = -1;
                         for(auto v : in_vectors[loc_id]){
-                            FT Cos = Cosine(base_v, v);
-                            if(equal(Cos, 1)) {
-                                if(value < 1){
-                                    used_vector = base_v;
-                                    value = 1;
-                                }
-                            }
-                            else if(Cos >= 0){
-                                if(value < Cos){
-                                    used_vector = v;
-                                    value = Cos;
-                                }
-                            }
-                            else if(value < Cos) {
-                                used_vector = base_v;
-                                value = Cos;
-                            }
+                            evalDirection(v, base_v, used_vector, value);
                         }
                         if(value == 1 || value < 0){
                             PointData *new_point = new PointData(locations, loc_id, new_loc, point_data_pool.size());
@@ -244,6 +259,51 @@ namespace CenterLineSolver {
                         }
                     }
                 }
+                else if(in_vectors[loc_id].size() == 0){
+                    const Point_2 &src = e.first->point(e.second), &dest = e.first->point(e.second^1);
+                    Vector_2 base_v = dest - src;
+                    if(in_vectors[new_loc].size()){
+                        Vector_2 used_vector;
+                        FT value = -1;
+                        for(auto v : in_vectors[new_loc]){
+                            evalDirection(v, -base_v, used_vector, value);
+                        }
+                        if(value == 1 || value < 0){ // simply link
+                            PointData *new_point = new PointData(locations, loc_id, new_loc, point_data_pool.size());
+                            point_data_pool.push_back(new_point);
+                            in_vectors[new_loc].push_back(base_v);
+                        }
+                        else{
+                            Point_2 foot = Line_2(src, used_vector).projection(dest);
+                            int turning = locations.size();
+                            locations.push_back(Location(foot, (locations[loc_id].time + locations[new_loc].time) / 2));
+                            PointData *point0 = new PointData(locations, loc_id, turning, point_data_pool.size());
+                            point_data_pool.push_back(point0);
+                            PointData *point1 = new PointData(locations, turning, new_loc, point_data_pool.size());
+                            point_data_pool.push_back(point1);
+                            in_vectors[new_loc].push_back(dest - foot);
+                        }
+                    }
+                    else{ // in_vectors of src and dest are both empty
+                        if(equal(base_v.x(), 0) || equal(base_v.y(), 0)){
+                            PointData *new_point = new PointData(locations, loc_id, new_loc, point_data_pool.size());
+                            point_data_pool.push_back(new_point);
+                            in_vectors[new_loc].push_back(base_v);
+                        }
+                        else{
+                            Point_2 foot;
+                            if(base_v.x() < base_v.y()) foot = Point_2(src.x(), dest.y());
+                            else foot = Point_2(dest.x(), src.y());
+                            int turning = locations.size();
+                            locations.push_back(Location(foot, (locations[loc_id].time + locations[new_loc].time) / 2));
+                            PointData *point0 = new PointData(locations, loc_id, turning, point_data_pool.size());
+                            point_data_pool.push_back(point0);
+                            PointData *point1 = new PointData(locations, turning, new_loc, point_data_pool.size());
+                            point_data_pool.push_back(point1);
+                            in_vectors[new_loc].push_back(dest - foot);
+                        }
+                    }
+                }
                 if(!inQ[new_loc]){
                     inQ[new_loc] = true;
                     Q.emplace(-locations[new_loc].time, new_loc);
@@ -266,6 +326,25 @@ namespace CenterLineSolver {
                     locations.push_back(Location(new_p, locations[loc_id].time));
                     PointData *point0 = new PointData(locations, loc_id, endpoint, point_data_pool.size());
                     point_data_pool.push_back(point0);
+                }
+                catch (const char *str){
+                    std::cerr << "connect_segments error = \n" << str << std::endl;
+                }
+            }
+            else if(degree[loc_id] == 0 && locations[loc_id].branches.size() > 2){
+                std::cout << "isoloated point" << locations[loc_id].point << std::endl;
+                try{
+                    Point_2 l = get_intersection(*origin_space, locations[loc_id].point, Vector_2(-1, 0));
+                    size_t endpoint = locations.size();
+                    locations.push_back(Location(l, locations[loc_id].time));
+                    PointData *point0 = new PointData(locations, loc_id, endpoint, point_data_pool.size());
+                    point_data_pool.push_back(point0);
+
+                    Point_2 r = get_intersection(*origin_space, locations[loc_id].point, Vector_2(1, 0));
+                    endpoint = locations.size();
+                    locations.push_back(Location(r, locations[loc_id].time));
+                    PointData *point1 = new PointData(locations, loc_id, endpoint, point_data_pool.size());
+                    point_data_pool.push_back(point1);
                 }
                 catch (const char *str){
                     std::cerr << "connect_segments error = \n" << str << std::endl;
