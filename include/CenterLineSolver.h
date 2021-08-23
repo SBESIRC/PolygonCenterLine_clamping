@@ -259,7 +259,12 @@ namespace CenterLineSolver {
         ssb.enter_contour(polygon.outer_boundary().vertices_begin(), polygon.outer_boundary().vertices_end());
         for(auto hole = polygon.holes_begin();hole != polygon.holes_end();++hole)
             ssb.enter_contour(hole->vertices_begin(), hole->vertices_end());
-        skeleton = ssb.construct_skeleton();
+        try{
+            skeleton = ssb.construct_skeleton();
+        }
+        catch(...){
+            std::cerr << "construct_skeleton exception ...\n";
+        }
         if(!skeleton) throw("skeleton was not correctly constructed");
 
         locations.resize(skeleton->size_of_vertices());

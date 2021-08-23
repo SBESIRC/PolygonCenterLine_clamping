@@ -48,16 +48,18 @@ namespace CenterLine
 				for (auto j = 0; j < coor.size(); ++j)
 				{
 					std::vector<Point> tpoly;
+					Point last_p;
 					for (auto k = 0; k < coor[j].size(); ++k)
 					{
 						Point p{ coor[j][k][0].asDouble(),coor[j][k][1].asDouble() };
+						if(k && p.x == last_p.x && p.y == last_p.y) continue;
 						if (p.x < out.minx) out.minx = p.x;
 						if (p.x > out.maxx) out.maxx = p.x;
 						if (p.y < out.miny) out.miny = p.y;
 						if (p.y > out.maxy) out.maxy = p.y;
 						tpoly.push_back(p);
 					}
-					tpwh.push_back(tpoly);
+					if(tpoly.size() > 2 || j == 0) tpwh.push_back(tpoly);
 				}
 				tb.coords = tpwh;
 				tb.category = cat;

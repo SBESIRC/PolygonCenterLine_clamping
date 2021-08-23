@@ -19,7 +19,8 @@ set(EXECUTABLE_OUTPUT_PATH "${PROJECT_BINARY_DIR}/bin")
 set(CMAKE_CXX_STANDARD 11)
 
 add_library(PolygonCenterLine STATIC ${lib_src} ${header_files} ${header_impl})
-target_include_directories(PolygonCenterLine PUBLIC include PUBLIC "./libraries")
+#target_include_directories(PolygonCenterLine PUBLIC include PUBLIC "./libraries")
+target_include_directories(PolygonCenterLine PUBLIC include)
 target_link_libraries(PolygonCenterLine PUBLIC CGAL::CGAL PUBLIC CGAL::CGAL_Qt5 PUBLIC jsoncpp_lib jsoncpp_object)
 
 # only for testing
