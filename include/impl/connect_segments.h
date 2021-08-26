@@ -134,7 +134,9 @@ namespace CenterLineSolver {
             int loc_id = Q.top().second; Q.pop();
             visited[loc_id] = true;
             
-            for(auto &e : locations[loc_id].branches) {
+            //for(auto &e : locations[loc_id].branches) {
+            for(size_t i = 0;i < locations[loc_id].branches.size();++i) {
+                auto &e = locations[loc_id].branches[i];
                 if(e.first->end_loc == -1){
                     std::cerr << "Point " << e.first->point_id << " not ended." << std::endl;
                     continue;
