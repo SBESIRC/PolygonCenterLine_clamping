@@ -240,7 +240,10 @@ namespace CenterLineSolver {
         cut_half_edge(base, prev, 1, location, point_pool, edge_pool);
         cut_half_edge(base, next, 0, location, point_pool, edge_pool);
     }
-
+    inline int ufs_find(std::vector<int> &f, size_t x){
+        if(f[x] == x) return x;
+        return f[x] = ufs_find(f, f[x]);
+    }
     template <typename K, class Poly_with_holes, class Poly>
     inline void CenterLineSolver<K, Poly_with_holes, Poly>::operator()(
         const Poly_with_holes &polygon)
@@ -267,29 +270,56 @@ namespace CenterLineSolver {
         }
         if(!skeleton) throw("skeleton was not correctly constructed");
 
-        locations.resize(skeleton->size_of_vertices());
-        unordered_map<int, int> index;
+        std::unordered_map<int, int> index;
+        std::unordered_set<std::pair<int, int>, PairHash> edge_set;
+        std::vector<int> f;
         std::cout << "size = " << skeleton->size_of_vertices() << std::endl;
-        int cnt = 0;
+        size_t cnt = 0;
         for(Vertex_iterator it = skeleton->vertices_begin();it != skeleton->vertices_end();++it){
             index[it->id()] = cnt;
-            locations[cnt].point = it->point();
-            //locations[cnt].time = it->time();
-            locations[cnt].time = it->time() * it->time();
+            f.push_back(cnt);
             ++cnt;
         }
         for(Halfedge_iterator it = skeleton->halfedges_begin();it != skeleton->halfedges_end();++it) if(it->is_bisector()) {
             Vertex_handle from = it->opposite()->vertex(), to = it->vertex();
+            if(equal(from->point().x(), to->point().x(), 1e-4) && equal(from->point().y(), to->point().y(), 1e-4)){
+                int a = ufs_find(f, index[from->id()]), b = ufs_find(f, index[to->id()]);
+                f[a] = b;
+            }
+        }
+        std::vector<int> rk(cnt, -1);
+        int rk_it = 0;
+        for(int i = 0;i < cnt;++i){
+            f[i] = ufs_find(f, i);
+            if(rk[f[i]] == -1) rk[f[i]] = rk_it++;
+            f[i] = rk[f[i]];
+        }
+
+        locations.resize(rk_it);
+        for(Vertex_iterator it = skeleton->vertices_begin();it != skeleton->vertices_end();++it){
+            int id = f[index[it->id()]];
+            locations[id].point = it->point();
+            //locations[cnt].time = it->time();
+            locations[id].time = it->time() * it->time();
+        }
+        for(Halfedge_iterator it = skeleton->halfedges_begin();it != skeleton->halfedges_end();++it) if(it->is_bisector()) {
+            Vertex_handle from = it->opposite()->vertex(), to = it->vertex();
+            int a = f[index[from->id()]], b = f[index[to->id()]];
             Halfedge_handle l = it->defining_contour_edge(), r = it->opposite()->defining_contour_edge();
-            if(index[from->id()] < index[to->id()]){
+            //if(index[from->id()] < index[to->id()]){
+            if(a < b){
                 if(from->time() > to->time()){
+                    swap(a, b);
                     swap(from, to);
                     swap(l, r);
                 }
+                if(edge_set.count(std::make_pair(a, b))) continue;
+                edge_set.insert(std::make_pair(a, b));
                 int e_id = point_data_pool.size();
-                PointData *edge = new PointData(locations, index[from->id()], index[to->id()], e_id);
+                //PointData *edge = new PointData(locations, index[from->id()], index[to->id()], e_id);
+                PointData *edge = new PointData(locations, a, b, e_id);
                 point_data_pool.push_back(edge);
-                std::cout << "edge = " << from->point() << " " << to->point() << std::endl;
+                //std::cout << "edge = " << from->point() << " " << to->point() << std::endl;
                 Vector_2 v_l = l->vertex()->point() - l->opposite()->vertex()->point();
                 Vector_2 v_r = r->vertex()->point() - r->opposite()->vertex()->point();
                 std::cout << "l = " << l->opposite()->vertex()->point() << " " << l->vertex()->point() << std::endl;
@@ -300,8 +330,10 @@ namespace CenterLineSolver {
                 FT absolute_scale = v_l.squared_length() * v_r.squared_length();
                 edge->is_ans = (inner < 0 && outer >= 0 && inner * inner * 4 >= absolute_scale);
                 std::cout << edge->is_ans << std::endl;
-                locations[index[from->id()]].branches.emplace_back(edge, 0);
-                locations[index[to->id()]].branches.emplace_back(edge, 1);
+                //locations[index[from->id()]].branches.emplace_back(edge, 0);
+                //locations[index[to->id()]].branches.emplace_back(edge, 1);
+                locations[a].branches.emplace_back(edge, 0);
+                locations[b].branches.emplace_back(edge, 1);
             }
         }
 

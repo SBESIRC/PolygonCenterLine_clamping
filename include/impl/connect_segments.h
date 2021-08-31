@@ -134,7 +134,7 @@ namespace CenterLineSolver {
             int loc_id = Q.top().second; Q.pop();
             visited[loc_id] = true;
             
-            for(auto &e : locations[loc_id].branches) {
+            for(auto &e : locations[loc_id].branches) if(e.second == false) {
                 if(e.first->end_loc == -1){
                     std::cerr << "Point " << e.first->point_id << " not ended." << std::endl;
                     continue;
@@ -148,10 +148,12 @@ namespace CenterLineSolver {
                     std::cout << "connecting PointData " << e.first->point_id << std::endl;
                     std::cout << "from: "; for(auto v : in_vectors[loc_id]) std::cout << v << " "; std::cout << std::endl;
                     std::cout << e.first->point(e.second) << " => " << e.first->point(e.second^1) << std::endl;
+                    std::cout << "vect = " << e.first->point(e.second^1) - e.first->point(e.second) << std::endl;
                     std::cout << "to: "; for(auto v : in_vectors[new_loc]) std::cout << -v << " "; std::cout << std::endl;
 
                     if(equal(src.x(), dest.x()) && equal(src.y(), dest.y())){ // �˻��ĵ�
-                        in_vectors[new_loc].insert(in_vectors[new_loc].end(), in_vectors[loc_id].begin(), in_vectors[loc_id].end());
+                        throw("repeated point");
+                        //in_vectors[new_loc].insert(in_vectors[new_loc].end(), in_vectors[loc_id].begin(), in_vectors[loc_id].end());
                     }
                     else if(in_vectors[new_loc].size() == 0){ // ��ص�����PointData�����Ǵ�
                         Vector_2 used_vector;
@@ -162,6 +164,7 @@ namespace CenterLineSolver {
                         if(value == 1 || value < 0){
                             PointData *new_point = new PointData(locations, loc_id, new_loc, point_data_pool.size());
                             point_data_pool.push_back(new_point);
+                            in_vectors[loc_id].push_back(-base_v);
                             in_vectors[new_loc].push_back(base_v);
                         }
                         else{
@@ -170,6 +173,8 @@ namespace CenterLineSolver {
                             locations.push_back(Location(foot, (locations[loc_id].time + locations[new_loc].time) / 2));
                             PointData *point0 = new PointData(locations, loc_id, turning, point_data_pool.size());
                             point_data_pool.push_back(point0);
+                            in_vectors[loc_id].push_back(src - foot);
+
                             PointData *point1 = new PointData(locations, turning, new_loc, point_data_pool.size());
                             point_data_pool.push_back(point1);
                             in_vectors[new_loc].push_back(dest - foot);
@@ -211,6 +216,7 @@ namespace CenterLineSolver {
                         if(used_vector0 == base_v && used_vector1 == base_v){ // ֱ������
                             PointData *new_point = new PointData(locations, loc_id, new_loc, point_data_pool.size());
                             point_data_pool.push_back(new_point);
+                            in_vectors[loc_id].push_back(-base_v);
                             in_vectors[new_loc].push_back(base_v);
                         }
                         else if(outer_product(used_vector0, base_v) * outer_product(base_v, used_vector1) < 0){
@@ -239,6 +245,8 @@ namespace CenterLineSolver {
                             locations.push_back(Location(foot1, (locations[loc_id].time + locations[new_loc].time * 3) / 4));
                             PointData *point0 = new PointData(locations, loc_id, turning0, point_data_pool.size());
                             point_data_pool.push_back(point0);
+                            in_vectors[loc_id].push_back(src - foot0);
+
                             PointData *point1 = new PointData(locations, turning0, turning1, point_data_pool.size());
                             point_data_pool.push_back(point1);
                             PointData *point2 = new PointData(locations, turning1, new_loc, point_data_pool.size());
@@ -253,13 +261,15 @@ namespace CenterLineSolver {
                             locations.push_back(Location(*tmp_p, (locations[loc_id].time + locations[new_loc].time) / 2));
                             PointData *point0 = new PointData(locations, loc_id, turning, point_data_pool.size());
                             point_data_pool.push_back(point0);
+                            in_vectors[loc_id].push_back(src - *tmp_p);
+
                             PointData *point1 = new PointData(locations, turning, new_loc, point_data_pool.size());
                             point_data_pool.push_back(point1);
                             in_vectors[new_loc].push_back(dest - *tmp_p);
                         }
                     }
                 }
-                else if(in_vectors[loc_id].size() == 0){
+                else if(in_vectors[loc_id].size() == 0 && locations[loc_id].branches.size() > 3) {
                     const Point_2 &src = e.first->point(e.second), &dest = e.first->point(e.second^1);
                     Vector_2 base_v = dest - src;
                     if(in_vectors[new_loc].size()){
@@ -272,6 +282,7 @@ namespace CenterLineSolver {
                             PointData *new_point = new PointData(locations, loc_id, new_loc, point_data_pool.size());
                             point_data_pool.push_back(new_point);
                             in_vectors[new_loc].push_back(base_v);
+                            in_vectors[loc_id].push_back(-base_v);
                         }
                         else{
                             Point_2 foot = Line_2(src, used_vector).projection(dest);
@@ -279,6 +290,8 @@ namespace CenterLineSolver {
                             locations.push_back(Location(foot, (locations[loc_id].time + locations[new_loc].time) / 2));
                             PointData *point0 = new PointData(locations, loc_id, turning, point_data_pool.size());
                             point_data_pool.push_back(point0);
+                            in_vectors[loc_id].push_back(src - foot);
+
                             PointData *point1 = new PointData(locations, turning, new_loc, point_data_pool.size());
                             point_data_pool.push_back(point1);
                             in_vectors[new_loc].push_back(dest - foot);
@@ -289,6 +302,7 @@ namespace CenterLineSolver {
                             PointData *new_point = new PointData(locations, loc_id, new_loc, point_data_pool.size());
                             point_data_pool.push_back(new_point);
                             in_vectors[new_loc].push_back(base_v);
+                            in_vectors[loc_id].push_back(-base_v);
                         }
                         else{
                             Point_2 foot;
@@ -298,6 +312,8 @@ namespace CenterLineSolver {
                             locations.push_back(Location(foot, (locations[loc_id].time + locations[new_loc].time) / 2));
                             PointData *point0 = new PointData(locations, loc_id, turning, point_data_pool.size());
                             point_data_pool.push_back(point0);
+                            in_vectors[loc_id].push_back(src - foot);
+
                             PointData *point1 = new PointData(locations, turning, new_loc, point_data_pool.size());
                             point_data_pool.push_back(point1);
                             in_vectors[new_loc].push_back(dest - foot);
@@ -314,14 +330,22 @@ namespace CenterLineSolver {
         std::vector<int> degree(locations.size(), 0);
         for(auto p : point_data_pool) if(p->is_ans) {
             ++degree[p->start_loc];
+            std::cout << p->point_id << " is ans\n";
+            std::cout << "ans=" << p->source() << " " << p->target()<< std::endl;
             if(p->end_loc != -1) ++degree[p->end_loc];
         }
         for(size_t loc_id = 0;loc_id != locations_size;++loc_id){
+            //if(degree[loc_id] == 1){
             if(degree[loc_id] == 1){
-                std::cout << "leaf point " << locations[loc_id].point << std::endl;
+                if(in_vectors[loc_id].size() == 0){
+                    throw("connect_segments error: leaf node has no in_vector");
+                }
+                std::cout << "degree" << in_vectors[loc_id].size() << std::endl;
+                std::cout << "leaf point " << loc_id << ": " << locations[loc_id].point << std::endl;
                 std::cout << "vector=" << in_vectors[loc_id][0] << std::endl;
                 try{
                     Point_2 new_p = get_intersection(*origin_space, locations[loc_id].point, in_vectors[loc_id][0]);
+                    std::cout << "intersection " << locations[loc_id].point << " " << new_p << std::endl;
                     size_t endpoint = locations.size();
                     locations.push_back(Location(new_p, locations[loc_id].time));
                     PointData *point0 = new PointData(locations, loc_id, endpoint, point_data_pool.size());
@@ -332,22 +356,31 @@ namespace CenterLineSolver {
                 }
             }
             else if(degree[loc_id] == 0 && locations[loc_id].branches.size() > 2){
-                std::cout << "isoloated point" << locations[loc_id].point << std::endl;
-                try{
-                    Point_2 l = get_intersection(*origin_space, locations[loc_id].point, Vector_2(-1, 0));
-                    size_t endpoint = locations.size();
-                    locations.push_back(Location(l, locations[loc_id].time));
-                    PointData *point0 = new PointData(locations, loc_id, endpoint, point_data_pool.size());
-                    point_data_pool.push_back(point0);
-
-                    Point_2 r = get_intersection(*origin_space, locations[loc_id].point, Vector_2(1, 0));
-                    endpoint = locations.size();
-                    locations.push_back(Location(r, locations[loc_id].time));
-                    PointData *point1 = new PointData(locations, loc_id, endpoint, point_data_pool.size());
-                    point_data_pool.push_back(point1);
+                bool has_out = false;
+                for(auto &branch : locations[loc_id].branches) if(branch.second == 0) {
+                    has_out = true;
+                    break;
                 }
-                catch (const char *str){
-                    std::cerr << "connect_segments error = \n" << str << std::endl;
+                if(!has_out){
+                    std::cout << "isoloated point" << locations[loc_id].point << std::endl;
+                    try{
+                        Point_2 l = get_intersection(*origin_space, locations[loc_id].point, Vector_2(-1, 0));
+                    std::cout << "intersection " << locations[loc_id].point << " " << l << std::endl;
+                        size_t endpoint = locations.size();
+                        locations.push_back(Location(l, locations[loc_id].time));
+                        PointData *point0 = new PointData(locations, loc_id, endpoint, point_data_pool.size());
+                        point_data_pool.push_back(point0);
+
+                        Point_2 r = get_intersection(*origin_space, locations[loc_id].point, Vector_2(1, 0));
+                    std::cout << "intersection " << locations[loc_id].point << " " << r << std::endl;
+                        endpoint = locations.size();
+                        locations.push_back(Location(r, locations[loc_id].time));
+                        PointData *point1 = new PointData(locations, loc_id, endpoint, point_data_pool.size());
+                        point_data_pool.push_back(point1);
+                    }
+                    catch (const char *str){
+                        std::cerr << "connect_segments error = \n" << str << std::endl;
+                    }
                 }
             }
         }
