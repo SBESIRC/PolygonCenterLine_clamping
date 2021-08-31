@@ -16,13 +16,25 @@ int main(int argc, char *argv[])
     }
     //CenterLine::PolygonCenterLine centerline(argv[1]);
     char filename[1024];
+    double R;
     //for(int i = 173;i <= 210;++i){
     //for(int i = 12;i <= 20;++i){
-    for(int i = 1;i <= 212;++i){
-        sprintf(filename, argv[1], i);
-        PolygonCenterLineTest centerline(filename, i);
+    if(argc == 4){
+        int from, to;
+        sscanf(argv[2], "%d", &from);
+        sscanf(argv[3], "%d", &to);
+        for(int i = from;i <= to;++i){
+            sprintf(filename, argv[1], i);
+            PolygonCenterLineTest centerline(filename, i);
+            centerline.showCenterLine();
+            //centerline.showPartition(0);
+        }
+    }
+    else { // if(argc == 3) {
+        sscanf(argv[2], "%lf", &R);
+        PolygonCenterLineTest centerline(argv[1], 0);
         centerline.showCenterLine();
-        //centerline.showPartition(0);
+        centerline.showPartition(R);
     }
     //double interval = 1;
     //if(argc >= 3){

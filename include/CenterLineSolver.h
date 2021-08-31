@@ -274,7 +274,8 @@ namespace CenterLineSolver {
         for(Vertex_iterator it = skeleton->vertices_begin();it != skeleton->vertices_end();++it){
             index[it->id()] = cnt;
             locations[cnt].point = it->point();
-            locations[cnt].time = it->time();
+            //locations[cnt].time = it->time();
+            locations[cnt].time = it->time() * it->time();
             ++cnt;
         }
         for(Halfedge_iterator it = skeleton->halfedges_begin();it != skeleton->halfedges_end();++it) if(it->is_bisector()) {

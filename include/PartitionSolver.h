@@ -112,6 +112,7 @@ namespace CenterLine {
 			std::vector<size_t> ch_id;
 			std::vector<std::pair<std::pair<FT, FT>, size_t>> range_info;
 			for(size_t i = 0;i < convex_remainders.size();++i) ch_id.push_back(i);
+			//for(int i = 0;i < segments.size();++i) std::cout << "seg_dis=" << seg_dis[i].first << " " << seg_dis[i].second << std::endl;
 			for(int i = 0;i < segments.size();++i){
 				Segment_2 &seg = segments[i];
 				Line_2 &line = seg.supporting_line();
@@ -119,9 +120,9 @@ namespace CenterLine {
 				FT l = calc_loc_on_line(line, seg.source()), r = calc_loc_on_line(line, seg.target());
 				if(l > r) std::swap(l, r);
 
-				range_info.clear();
 				//std::cout << "seg = " << seg << std::endl;
 				//std::cout << max_dis << std::endl;
+				range_info.clear();
 				for(size_t j = 0;j < ch_id.size();++j){
 					Polygon_2 &poly = convex_remainders[ch_id[j]];
 					FT mn = r, mx = l;
@@ -160,10 +161,10 @@ namespace CenterLine {
 				//for(auto info : range_info){ std::cout << info.first.first << " "  << info.first.second << "\n" << convex_remainders[ch_id[info.second]]; }
 				if(range_info.size() < 2) continue;
 				FT cur_r = range_info[0].first.second;
-				size_t cur_ch = 0;
+				size_t cur_ch = range_info[0].second;
 				for(size_t i = 1;i < range_info.size();++i){
 					if(range_info[i].first.first < cur_r){
-						cur_ch = merge_ch(ch_id, cur_ch, i);
+						cur_ch = merge_ch(ch_id, cur_ch, range_info[i].second);
 					}
 					cur_r = CGAL::max(cur_r, range_info[i].first.second);
 				}
