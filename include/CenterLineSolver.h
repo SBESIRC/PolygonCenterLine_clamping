@@ -6,7 +6,7 @@
 #include <queue>
 #include <sstream>
 #include <unordered_map>
-
+#include <unordered_set>
 #include <CGAL/Partition_traits_2.h>
 #include <CGAL/Polygon_with_holes_2.h>
 #include <CGAL/intersections.h>
