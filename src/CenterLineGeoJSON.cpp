@@ -125,6 +125,36 @@ namespace CenterLine
 		}
 		return polys;
 	}
+	std::string out2str(const std::vector<Block> &ucs_blocks, const std::vector<Point> &corr_ucs) {
+		Json::Value root, features;
+		Json::Value feature, geometry, poly, coords, point, pc, v;
+		for(size_t i = 0;i < ucs_blocks.size();++i){
+			auto &block = ucs_blocks[i];
+			auto &ucs = corr_ucs[i];
+			geometry["type"] = "Polygon";
+			//coords = dump_block(block);
+			coords.clear();
+			for(auto lst : block.coords){
+				poly.clear();
+				for(auto p : lst){
+					point.clear();
+					point.append(p.x); point.append(p.y);
+					poly.append(point);
+				}
+				coords.append(poly);
+			}
+			geometry["coordinates"] = coords;
+			feature["type"] = "Feature";
+			feature["geometry"] = geometry;
+			v.clear();
+			v.append(ucs.x); v.append(ucs.y);
+			feature["properties"]["ucs_direction"] = v;
+			features.append(feature);
+		}
+		root["features"] = features;
+		root["type"] = "FeatureCollection";
+		return root.toStyledString();
+	}
 	std::string out2str(const std::vector<Block> &rect_blocks, const std::vector<Block> &centerline_blocks) {
 		//auto pt = out.p;
 		//auto type = out.type;

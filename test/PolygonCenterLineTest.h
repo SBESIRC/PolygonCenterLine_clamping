@@ -96,6 +96,24 @@ struct PolygonCenterLineTest{
 			mainwindow.saveImage("test_results/" + title + ".png");
         }
 	}
+	void showUcsPartition(){
+		int argc = 1;
+        const char* argv[2]={"t2_viewer","\0"};
+		QApplication app(argc, const_cast<char**>(argv));
+		std::string title = "ucs-partition-" + filename;
+		centerline.calcUcsPartition(1e-2);
+		std::cout << "ans=" << centerline.ucs_parts_geojson() << std::endl;
+
+		CGAL::PartitionViewer<K> mainwindow(app.activeWindow(), centerline.relative_poly, title.c_str());
+		CGAL::Color c(75, 160, 255, 127);
+		for(const auto &ucs_part : centerline.rel_ucs_parts){
+			mainwindow.drawPoly(ucs_part, c);
+		}
+		mainwindow.drawPoly(centerline.relative_segments, c, CGAL::Color(255, 255, 0, 127));
+		mainwindow.show();
+		app.exec();
+		mainwindow.saveImage("partition_results/" + title + ".png");
+	}
 	void showPartition(double R = 0){
         int argc = 1;
         const char* argv[2]={"t2_viewer","\0"};

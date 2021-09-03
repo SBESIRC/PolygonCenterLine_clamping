@@ -27,6 +27,7 @@ int main(int argc, char *argv[])
             sprintf(filename, argv[1], i);
             PolygonCenterLineTest centerline(filename, i);
             centerline.showCenterLine();
+            centerline.showUcsPartition();
             //centerline.showPartition(0);
         }
     }
@@ -34,7 +35,8 @@ int main(int argc, char *argv[])
         sscanf(argv[2], "%lf", &R);
         PolygonCenterLineTest centerline(argv[1], 0);
         centerline.showCenterLine();
-        centerline.showPartition(R);
+        centerline.showUcsPartition();
+        //centerline.showPartition(R);
     }
     //double interval = 1;
     //if(argc >= 3){

@@ -7,6 +7,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
+
 #include <CGAL/Partition_traits_2.h>
 #include <CGAL/Polygon_with_holes_2.h>
 #include <CGAL/intersections.h>
@@ -213,6 +214,9 @@ namespace CenterLineSolver {
         void connect_segments();
         void operator()(const Poly_with_holes &polygon);
         CenterLineSolver() { is_debugging = false; }
+        ~CenterLineSolver(){
+            for(auto ptr : point_data_pool) delete ptr;
+        }
     }; // CenterLineSolver
 
     // PolygonCenterLine_Implementation

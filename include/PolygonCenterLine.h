@@ -18,8 +18,14 @@ before including this file in exactly one source file.
 #include <CGAL/Polygon_with_holes_2.h>
 #include <CGAL/Filtered_kernel.h>
 #include <CGAL/Triangulation_structural_filtering_traits.h>
+#include <CGAL/intersections.h>
+#include <CGAL/partition_2.h>
+#include <boost/optional/optional_io.hpp>
+#include <CGAL/Straight_skeleton_builder_2.h>
+#include <CGAL/Straight_skeleton_converter_2.h>
 
 #include "CenterLineSolver.h"
+#include "UcsPartitionSolver.h"
 #include "PartitionSolver.h"
 #include "convertKernel.h"
 #include "CenterLineGeoJSON.h"
@@ -49,6 +55,10 @@ namespace CenterLine {
         //{};
         //using InnerK = CGAL::Filtered_kernel_adaptor<CGAL::Simple_cartesian<NType>>;
         using InnerK = CGAL::Epick;
+
+        using InnerSs = CGAL::Straight_skeleton_2<InnerK>;
+        using Ss = CGAL::Straight_skeleton_2<K>;
+
         // Gmpq precisions
         static const int _input_precision = 20; // С�����20�����ƣ�Լ1e-6
 
@@ -64,12 +74,14 @@ namespace CenterLine {
         std::vector<FT> point_contour_distance;
         // results:
         size_t seg_cnt_before_connect;
+        boost::shared_ptr<Ss> skeleton;
         std::vector<Segment_2> relative_segments, relative_sub_segments;
         std::vector<Segment_2> _segments, _sub_segments;
         std::vector<std::pair<FT, FT>> segment_dis;
         std::vector<Offset_polygon_with_holes_2> rel_remainders;
         std::vector<Polygon_2> rel_convex_remainders;
-        std::vector<Polygon_with_holes_2> rel_parts, centerline_parts;
+        std::vector<Polygon_with_holes_2> rel_parts, centerline_parts, rel_ucs_parts;
+        std::vector<Vector_2> corr_ucs;
 
         void init()
         {
@@ -92,9 +104,13 @@ namespace CenterLine {
         bool calcCenterLine(std::string geojson) { return calcCenterLine(geojson_to_poly(geojson)); }
         // calc with _segments
         bool calcPartition(FT R);
+        // 弧度值差距不超过eps被认为是同一个ucs
+        bool calcUcsPartition(double eps);
+
         std::string centerline_geojson() const { return segments_to_geojson(_segments); }
         std::string sub_centerline_geojson() const { return segments_to_geojson(_sub_segments); }
         std::string parts_geojson() const { return multipoly_to_geojson(rel_parts, centerline_parts, polygon_offset); }
+        std::string ucs_parts_geojson() const { return multipoly_to_geojson(rel_ucs_parts, corr_ucs, polygon_offset); }
 
         static std::string segments_to_geojson(const std::vector<Segment_2> &segs){
             std::vector<std::pair<Point, Point>> res;
@@ -105,6 +121,23 @@ namespace CenterLine {
                 res.push_back(std::make_pair(p0, p1));
             }
             return out2str(res);
+        }
+        static std::string multipoly_to_geojson(const std::vector<Polygon_with_holes_2> &polygons, const std::vector<Vector_2> &corr_ucs, Vector_2 offset = Vector_2(0, 0)){
+            std::vector<Block> ucs_blocks;
+            std::vector<Point> ucs;
+            for(auto &polygon : polygons){
+                Block block;
+                block.coords.push_back(convert_points(polygon.outer_boundary(), offset));
+                for(auto h_it = polygon.holes_begin(); h_it != polygon.holes_end(); ++h_it){
+                    block.coords.push_back(convert_points(*h_it, offset));
+                }
+                ucs_blocks.push_back(block);
+            }
+            for(auto &co_ucs : corr_ucs){
+                Point dir(CGAL::to_double(co_ucs.x().exact()), CGAL::to_double(co_ucs.y().exact()));
+                ucs.push_back(dir);
+            }
+            return out2str(ucs_blocks, ucs);
         }
         static std::string multipoly_to_geojson(const std::vector<Polygon_with_holes_2> &polygons, const std::vector<Polygon_with_holes_2> &centerline_parts, Vector_2 offset = Vector_2(0, 0)){
             std::vector<Block> rect_blocks, centerline_blocks;
@@ -228,6 +261,10 @@ namespace CenterLine {
         //relative_segments = solver.res_segments;
         //relative_sub_segments = solver.sub_segments;
 
+        using ItemsCvt = CGAL::Straight_skeleton_items_converter_2<InnerSs, Ss>;
+        CGAL::Straight_skeleton_converter_2<InnerSs, Ss, ItemsCvt> Ss_converter;
+        skeleton = Ss_converter(*solver.skeleton);
+
         for (size_t i = 0; i < relative_segments.size(); ++i) {
             auto &seg = relative_segments[i];
             //CGAL::Segment_2<InnerK> new_seg(seg.source() + polygon_offset, seg.target() + polygon_offset);
@@ -243,6 +280,19 @@ namespace CenterLine {
         return success;
     } // bool PolygonCenterLine::calcCenterLine(const Polygon_with_holes_2 &space)
 
+    bool PolygonCenterLine::calcUcsPartition(double eps){
+        bool success = true;
+
+        UcsPartitionSolver<K> solver(skeleton);
+        success = solver(eps);
+        if(success){
+            for(size_t i = 0;i < solver.ucs_parts.size();++i){
+                rel_ucs_parts.push_back(solver.ucs_parts[i]);
+                corr_ucs.push_back(solver.ucs_direction[i]);
+            }
+        }
+        return success;
+    }
 
     bool PolygonCenterLine::calcPartition(FT R) {
         if(relative_segments.empty()) return false;

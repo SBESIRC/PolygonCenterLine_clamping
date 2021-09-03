@@ -1,3 +1,5 @@
+#ifndef PARTITION_SOLVER_H
+#define PARTITION_SOLVER_H
 #include <iostream>
 #include <vector>
 
@@ -237,3 +239,5 @@ namespace CenterLine {
 		}
 	}; // struct ParititonSolver
 }
+
+#endif // PARTITION_SOLVER_H
