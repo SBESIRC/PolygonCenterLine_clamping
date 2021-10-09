@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
             PolygonCenterLineTest centerline(filename, i);
             centerline.showCenterLine();
             centerline.showUcsPartition();
-            //centerline.showPartition(0);
+            centerline.showPartition(0);
         }
     }
     else { // if(argc == 3) {
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
         PolygonCenterLineTest centerline(argv[1], 0);
         centerline.showCenterLine();
         centerline.showUcsPartition();
-        //centerline.showPartition(R);
+        centerline.showPartition(R);
     }
     //double interval = 1;
     //if(argc >= 3){

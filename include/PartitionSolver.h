@@ -189,17 +189,22 @@ namespace CenterLine {
 			}
 
 			for(size_t i = boxes.size() - 1;i < boxes.size();--i){
-				for(size_t j = i + 1;j < boxes.size();) {
-					if(do_overlap(boxes[j], boxes[i])){
-						boxes[i] += boxes[j];
-						if(remainders_in_box[j].size() > remainders_in_box[i].size()) remainders_in_box[i].swap(remainders_in_box[j]);
-						remainders_in_box[i].insert(remainders_in_box[i].begin(), remainders_in_box[j].begin(), remainders_in_box[j].end());
-						std::swap(boxes[j], boxes[boxes.size() - 1]);
-						remainders_in_box[j].swap(remainders_in_box[boxes.size() - 1]);
-						boxes.pop_back();
-						remainders_in_box.pop_back();
+				bool changed = true;
+				while(changed){
+					changed = false;
+					for(size_t j = i + 1;j < boxes.size();) {
+						if(do_overlap(boxes[j], boxes[i])){
+							changed = true;
+							boxes[i] += boxes[j];
+							if(remainders_in_box[j].size() > remainders_in_box[i].size()) remainders_in_box[i].swap(remainders_in_box[j]);
+							remainders_in_box[i].insert(remainders_in_box[i].begin(), remainders_in_box[j].begin(), remainders_in_box[j].end());
+							std::swap(boxes[j], boxes[boxes.size() - 1]);
+							remainders_in_box[j].swap(remainders_in_box[boxes.size() - 1]);
+							boxes.pop_back();
+							remainders_in_box.pop_back();
+						}
+						else ++j;
 					}
-					else ++j;
 				}
 			}
 		}
@@ -219,10 +224,20 @@ namespace CenterLine {
 				rect.push_back(Point_2(box.xmin(), box.ymax()));
 				std::vector<Polygon_with_holes_2> all_parts;
 				CGAL::intersection(space, rect, std::back_inserter(all_parts));
-				for(auto &part : all_parts){
+				if(all_parts.size() == 1){
+					this->parts.insert(this->parts.end(), all_parts.begin(), all_parts.end());
+				}
+				else for(auto &part : all_parts){
 					bool ok = false;
 					for(int rem : rems){
-						Point_2 p = *convex_remainders[rem].vertices_begin();
+						Vector_2 v(0,0);
+						int cnt = 0;
+						for(auto it = convex_remainders[rem].vertices_begin();it != convex_remainders[rem].vertices_end();++it){
+							v += *it - CGAL::ORIGIN;
+							++cnt;
+						}
+						Point_2 p = CGAL::ORIGIN + v / cnt;
+
 						if(CGAL::oriented_side(p, part) != CGAL::ON_NEGATIVE_SIDE){
 							ok = true;
 							break;

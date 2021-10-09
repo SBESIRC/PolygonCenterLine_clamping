@@ -345,6 +345,9 @@ namespace CenterLineSolver {
                 std::cout << "vector=" << in_vectors[loc_id][0] << std::endl;
                 try{
                     Point_2 new_p = get_intersection(*origin_space, locations[loc_id].point, in_vectors[loc_id][0]);
+                    if(CGAL::squared_distance(new_p, locations[loc_id].point) < 1e-6){
+                        continue;
+                    }
                     std::cout << "intersection " << locations[loc_id].point << " " << new_p << std::endl;
                     size_t endpoint = locations.size();
                     locations.push_back(Location(new_p, locations[loc_id].time));
