@@ -245,13 +245,14 @@ namespace CenterLine {
         for(auto p : solver.res_seg_dis){
             segment_dis.emplace_back(res_nt_converter(p.first), res_nt_converter(p.second));
         }
+        // for auto selecting R for PartitionSolver Test
         for(auto p_it : solver.point_data_pool) if(p_it->is_ans) {
             FT x = res_nt_converter(p_it->start_time());
-            x = int(CGAL::to_double(x) / 20 + 0.5) * 20;
+            x = int(CGAL::sqrt(CGAL::to_double(x)) / 20 + 0.5) * 20;
             point_contour_distance.push_back(x);
 
             x = res_nt_converter(p_it->end_time());
-            x = int(CGAL::to_double(x) / 20 + 0.5) * 20;
+            x = int(CGAL::sqrt(CGAL::to_double(x)) / 20 + 0.5) * 20;
             point_contour_distance.push_back(x);
         }
         std::sort(point_contour_distance.begin(), point_contour_distance.end());

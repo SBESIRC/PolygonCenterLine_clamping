@@ -60,7 +60,7 @@ namespace CenterLineSolver {
         using Solver = CenterLineSolver<K, CGAL::Polygon_with_holes_2<K>, CGAL::Polygon_2<K>>;
         bool upd = false;
         FT Cos = Solver::Cosine(base_v, from);
-        if(Solver::equal(Cos, 1)) {
+        if(Solver::equal(Cos, 1) || Solver::equal(Cos, 0)) {
             if(value < 1){
                 used_vector = base_v;
                 value = 1;
@@ -68,9 +68,10 @@ namespace CenterLineSolver {
             }
         }
         else if(Cos >= 0){
-            if(value < Cos){
+            FT t = 1 + (Cos - 1) * Cos;
+            if(value < t){
                 used_vector = from;
-                value = Cos;
+                value = t;
                 upd = true;
             }
         }
@@ -195,6 +196,8 @@ namespace CenterLineSolver {
                                 }
                                 else if(Cos0 < 0 || Cos1 < 0){
                                     used_v0 = used_v1 = base_v;
+                                    if(Cos0 >= 0) Cos0 = 1 + (Cos0 - 1) * Cos0;
+                                    if(Cos1 >= 0) Cos1 = 1 + (Cos1 - 1) * Cos1;
                                     cur_value = (Cos0 + Cos1) / 2;
                                 }
                                 else if(Sin0 * Sin1 < 0) {
