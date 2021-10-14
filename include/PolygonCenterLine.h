@@ -41,9 +41,9 @@ namespace CenterLine {
         using Vector_2 = CGAL::Vector_2<K>;
         using Polygon_with_holes_2 = CGAL::Polygon_with_holes_2<K>;
 
-		using Gps_traits_2 = CGAL::Gps_circle_segment_traits_2<K>;
-		using Offset_polygon_2 = Gps_traits_2::Polygon_2;
-		using Offset_polygon_with_holes_2 = Gps_traits_2::Polygon_with_holes_2;
+        using Gps_traits_2 = CGAL::Gps_circle_segment_traits_2<K>;
+        using Offset_polygon_2 = Gps_traits_2::Polygon_2;
+        using Offset_polygon_with_holes_2 = Gps_traits_2::Polygon_with_holes_2;
 
         //using NType = CGAL::Gmpfr;
         //class InnerK : public CGAL::Filtered_kernel_adaptor<CGAL::Type_equality_wrapper<CGAL::Simple_cartesian<NType>::Base<InnerK>::Type, InnerK>,
