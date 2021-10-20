@@ -194,11 +194,44 @@ namespace CenterLineSolver {
                                     used_v0 = used_v1 = base_v;
                                     cur_value = 4;
                                 }
-                                else if(Cos0 < 0 || Cos1 < 0){
-                                    used_v0 = used_v1 = base_v;
-                                    if(Cos0 >= 0) Cos0 = 1 + (Cos0 - 1) * Cos0;
-                                    if(Cos1 >= 0) Cos1 = 1 + (Cos1 - 1) * Cos1;
-                                    cur_value = (Cos0 + Cos1) / 2;
+                                else if(Cos0 <= 0 || Cos1 <= 0){
+                                    Vector_2 nv0 = v0, nv1 = v1;
+                                    if(Cos0 <= 0){
+                                        FT tmp;
+                                        if(Sin0 < 0){
+                                            nv0 = v0.perpendicular(CGAL::CLOCKWISE);
+                                            tmp = -Sin0; Sin0 = Cos0;
+                                        }
+                                        else{
+                                            nv0 = v0.perpendicular(CGAL::COUNTERCLOCKWISE);
+                                            tmp = Sin0; Sin0 = -Cos0;
+                                        }
+                                        Cos0 = tmp;
+                                    }
+                                    if(Cos1 <= 0){
+                                        FT tmp;
+                                        if(Sin1 < 0){
+                                            nv1 = v1.perpendicular(CGAL::COUNTERCLOCKWISE);
+                                            tmp = -Sin1; Sin1 = Cos1;
+                                        }
+                                        else{
+                                            nv1 = v1.perpendicular(CGAL::CLOCKWISE);
+                                            tmp = Sin1; Sin1 = -Cos0;
+                                        }
+                                    }
+                                    if(equal(Cos0, 1) || equal(Cos1, 1)){
+                                        used_v0 = used_v1 = base_v;
+                                        cur_value = 2;
+                                    }
+                                    else if(Sin0 * Sin1 < 0){
+                                        used_v0 = nv0; used_v1 = -nv1;
+                                        cur_value = Cosine(nv0, -nv1) / 2;
+                                    }
+                                    else{
+                                        used_v0 = nv0; used_v1 = -nv1;
+                                        FT t = Sine(nv0, -nv1);
+                                        cur_value = t * t;
+                                    }
                                 }
                                 else if(Sin0 * Sin1 < 0) {
                                     used_v0 = v0; used_v1 = -v1;
