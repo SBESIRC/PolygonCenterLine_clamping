@@ -68,11 +68,21 @@ namespace CenterLineSolver {
             }
         }
         else if(Cos >= 0){
-            FT t = 1 + (Cos - 1) * Cos;
-            if(value < t){
-                used_vector = from;
-                value = t;
-                upd = true;
+            FT t0 = 1 - Cos * Cos;
+            FT t1 = Cos * Cos / 2;
+            if(t0 > t1){
+                if(value < t0){
+                    used_vector = from;
+                    value = t0;
+                    upd = true;
+                }
+            }
+            else{
+                if(value < t1){
+                    used_vector = base_v;
+                    value = t1;
+                    upd = true;
+                }
             }
         }
         else if(value < Cos) {
@@ -203,12 +213,23 @@ namespace CenterLineSolver {
                                 else if(Sin0 * Sin1 < 0) {
                                     used_v0 = v0; used_v1 = -v1;
                                     //cur_value = -Sin0 * Sin1;
-                                    cur_value = Cosine(v0, -v1);
+                                    FT tmp = Cosine(v0, -v1);
+                                    cur_value = tmp * tmp;
                                 }
-                                else{
-                                    used_v0 = v0; used_v1 = -v1;
-                                    FT tmp = Sine(v0, -v1);
-                                    cur_value = 2 * tmp * tmp;
+                                else{ // Sin0 * Sin1 > 0
+                                    FT inner = v0.x() * v1.x() + v0.y() * v1.y();
+                                    FT absol = v0.squared_length() * v1.squared_length();
+                                    if(inner > 0 && inner * inner * 4 >= absol){ // >= 120 degrees
+                                        used_v0 = used_v1 = base_v;
+                                        Cos0 = 1 + (Cos0 - 1) * Cos0;
+                                        Cos1 = 1 + (Cos1 - 1) * Cos1;
+                                        cur_value = (Cos0 + Cos1) / 2;
+                                    }
+                                    else{
+                                        used_v0 = v0; used_v1 = -v1;
+                                        FT tmp = Sine(v0, -v1);
+                                        cur_value = 2 * tmp * tmp;
+                                    }
                                 }
                                 if(cur_value > value){
                                     value = cur_value;
