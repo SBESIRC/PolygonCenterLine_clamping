@@ -109,6 +109,12 @@ namespace CenterLine {
 
         std::string centerline_geojson() const { return segments_to_geojson(_segments); }
         std::string sub_centerline_geojson() const { return segments_to_geojson(_sub_segments); }
+        std::string skeleton_geojson() const{
+            std::vector<Segment_2> segments;
+            segments.insert(segments.end(), _segments.begin(), _segments.begin() + this->seg_cnt_before_connect);
+            segments.insert(segments.end(), _sub_segments.begin(), _sub_segments.end());
+            return segments_to_geojson(segments);
+        }
         std::string parts_geojson() const { return multipoly_to_geojson(rel_parts, centerline_parts, polygon_offset); }
         std::string ucs_parts_geojson() const { return multipoly_to_geojson(rel_ucs_parts, corr_ucs, polygon_offset); }
 
