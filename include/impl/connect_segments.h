@@ -194,21 +194,79 @@ namespace CenterLineSolver {
                     else{ // �������in_vectors
                         Vector_2 used_vector0, used_vector1, used_v0, used_v1;
                         FT value = -2, cur_value;
+                        //bool is_perp, use_perp = false;
+                        //Vector_2 perp_v0, perp_v1;
                         for(auto v0 : in_vectors[loc_id]) {
                             FT Sin0 = outer_product(v0, base_v) / CGAL::sqrt(v0.squared_length() * base_v.squared_length());
                             FT Cos0 = Cosine(v0, base_v);
                             for(auto v1 : in_vectors[new_loc]){
                                 FT Sin1 = outer_product(base_v, -v1) / CGAL::sqrt(v1.squared_length() * base_v.squared_length());
                                 FT Cos1 = Cosine(-v1, base_v);
+                                //is_perp = false;
                                 if(equal(Cos0, 1) || equal(Cos1, 1)){
                                     used_v0 = used_v1 = base_v;
                                     cur_value = 4;
                                 }
-                                else if(Cos0 < 0 || Cos1 < 0){
-                                    used_v0 = used_v1 = base_v;
-                                    if(Cos0 >= 0) Cos0 = 1 + (Cos0 - 1) * Cos0;
-                                    if(Cos1 >= 0) Cos1 = 1 + (Cos1 - 1) * Cos1;
-                                    cur_value = (Cos0 + Cos1) / 2;
+                                //else if(Cos0 < 0 || Cos1 < 0){
+                                //    used_v0 = used_v1 = base_v;
+                                //    if(Cos0 >= 0) Cos0 = 1 + (Cos0 - 1) * Cos0;
+                                //    if(Cos1 >= 0) Cos1 = 1 + (Cos1 - 1) * Cos1;
+                                //    cur_value = (Cos0 + Cos1) / 2;
+                                //}
+                                else if(Cos0 <= 0 || Cos1 <= 0){
+                                    Vector_2 nv0 = v0, nv1 = v1;
+                                    //is_perp = true;
+                                    if(Cos0 <= 0){
+                                        FT tmp;
+                                        if(Sin0 < 0){
+                                            nv0 = v0.perpendicular(CGAL::CLOCKWISE);
+                                            tmp = -Sin0; Sin0 = Cos0;
+                                        }
+                                        else{
+                                            nv0 = v0.perpendicular(CGAL::COUNTERCLOCKWISE);
+                                            tmp = Sin0; Sin0 = -Cos0;
+                                        }
+                                        Cos0 = tmp;
+                                    }
+                                    if(Cos1 <= 0){
+                                        FT tmp;
+                                        if(Sin1 < 0){
+                                            nv1 = v1.perpendicular(CGAL::COUNTERCLOCKWISE);
+                                            tmp = -Sin1; Sin1 = Cos1;
+                                        }
+                                        else{
+                                            nv1 = v1.perpendicular(CGAL::CLOCKWISE);
+                                            tmp = Sin1; Sin1 = -Cos1;
+                                        }
+                                        Cos1 = tmp;
+                                    }
+                                    if(equal(Cos0, 1) || equal(Cos1, 1)){
+                                        used_v0 = used_v1 = base_v;
+                                        cur_value = 2;
+                                    }
+                                    else if(Sin0 * Sin1 < 0){
+                                        used_v0 = nv0; used_v1 = -nv1;
+                                        FT tmp = Cosine(nv0, -nv1);
+                                        cur_value = tmp * tmp / 2;
+                                    }
+                                    else{
+                                        //used_v0 = nv0; used_v1 = -nv1;
+                                        //FT t = Sine(nv0, -nv1);
+                                        //cur_value = t * t;
+                                        FT inner = nv0.x() * nv1.x() + nv0.y() * nv1.y();
+                                        FT absol = nv0.squared_length() * nv1.squared_length();
+                                        if(inner > 0 && inner * inner * 4 >= absol){ // >= 120 degrees
+                                            used_v0 = used_v1 = base_v;
+                                            FT t0 = Cos0 * Cos0 * 2 - 1; t0 = t0 * t0;
+                                            FT t1 = Cos1 * Cos1 * 2 - 1; t1 = t1 * t1;
+                                            cur_value = (t0 + t1) / 4;
+                                        }
+                                        else{
+                                            used_v0 = nv0; used_v1 = -nv1;
+                                            FT tmp = Sine(nv0, -nv1);
+                                            cur_value = tmp * tmp;
+                                        }
+                                    }
                                 }
                                 else if(Sin0 * Sin1 < 0) {
                                     used_v0 = v0; used_v1 = -v1;
@@ -221,9 +279,9 @@ namespace CenterLineSolver {
                                     FT absol = v0.squared_length() * v1.squared_length();
                                     if(inner > 0 && inner * inner * 4 >= absol){ // >= 120 degrees
                                         used_v0 = used_v1 = base_v;
-                                        Cos0 = 1 + (Cos0 - 1) * Cos0;
-                                        Cos1 = 1 + (Cos1 - 1) * Cos1;
-                                        cur_value = (Cos0 + Cos1) / 2;
+                                        FT t0 = Cos0 * Cos0 * 2 - 1; t0 = t0 * t0;
+                                        FT t1 = Cos1 * Cos1 * 2 - 1; t1 = t1 * t1;
+                                        cur_value = (t0 + t1) / 2;
                                     }
                                     else{
                                         used_v0 = v0; used_v1 = -v1;
@@ -232,11 +290,23 @@ namespace CenterLineSolver {
                                     }
                                 }
                                 if(cur_value > value){
+                                    //if(is_perp){ use_perp = true; perp_v0 = v0; perp_v1 = v1; }
+                                    //else use_perp = false;
                                     value = cur_value;
                                     used_vector0 = used_v0, used_vector1 = used_v1;
                                 }
                             }
                         }
+                        //if(use_perp){
+                        //    Vector_2 v0 = perp_v0, v1 = perp_v1; Vector_2 nv0 = v0, nv1 = v1;
+                        //    FT Sin0 = outer_product(v0, base_v) / CGAL::sqrt(v0.squared_length() * base_v.squared_length());
+                        //    FT Sin1 = outer_product(base_v, -v1) / CGAL::sqrt(v1.squared_length() * base_v.squared_length());
+                        //    FT Cos0 = Cosine(v0, base_v); FT Cos1 = Cosine(-v1, base_v);
+                        //    std::cout << "use_perp: " << src << " "  << dest << std::endl;
+                        //    std::cout << v0 << " " << base_v << " " << v1 << std::endl;
+                        //    //...
+                        //}
+                        // end DEBUG
                         if(used_vector0 == base_v && used_vector1 == base_v){ // ֱ������
                             PointData *new_point = new PointData(locations, loc_id, new_loc, point_data_pool.size());
                             point_data_pool.push_back(new_point);
