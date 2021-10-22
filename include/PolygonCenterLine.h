@@ -10,7 +10,6 @@ before including this file in exactly one source file.
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
-#include <CGAL/Exact_predicates_exact_constructions_kernel_with_sqrt.h>
 #include <CGAL/Lazy_exact_nt.h>
 #include <CGAL/Gmpfr.h>
 #include <CGAL/Polygon_2.h>
@@ -20,7 +19,6 @@ before including this file in exactly one source file.
 #include <CGAL/Triangulation_structural_filtering_traits.h>
 #include <CGAL/intersections.h>
 #include <CGAL/partition_2.h>
-#include <boost/optional/optional_io.hpp>
 #include <CGAL/Straight_skeleton_builder_2.h>
 #include <CGAL/Straight_skeleton_converter_2.h>
 

@@ -2,12 +2,10 @@
 #define CAST_KERNEL_H
 #include <CGAL/Cartesian_converter.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
-#include <CGAL/Exact_predicates_exact_constructions_kernel_with_sqrt.h>
 #include <CGAL/Polygon_2.h>
 
 namespace KernelConverter {
     using Epect_sqrt = CGAL::Simple_cartesian<CORE::Expr>;
-    //using Fixed_nt = CGAL::Lazy_exact_nt<CGAL::Gmpfr>;
     using Fixed_nt = CGAL::Gmpfr;
     using Lazy_fixed_nt = CGAL::Lazy_exact_nt<Fixed_nt>;
     using Fixed_kernel = CGAL::Simple_cartesian<Fixed_nt>;
@@ -53,7 +51,6 @@ namespace KernelConverter {
     // <CGAL::Epeck, Epect_sqrt, NumberConverter<A, B, 20> >
     template <typename From, typename To, typename Converter>
     struct KernelConverter : public CGAL::Cartesian_converter<From, To, Converter> {
-        //using K = CGAL::Exact_predicates_exact_constructions_kernel_with_sqrt;
         using K = typename To;
         CGAL::Polygon_2<K> convert(const CGAL::Polygon_2<From> &poly)
         {
