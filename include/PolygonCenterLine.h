@@ -22,6 +22,7 @@ before including this file in exactly one source file.
 #include <CGAL/Straight_skeleton_builder_2.h>
 #include <CGAL/Straight_skeleton_converter_2.h>
 
+#include "CenterLineContext.h"
 #include "CenterLineSolver.h"
 #include "UcsPartitionSolver.h"
 #include "PartitionSolver.h"
@@ -67,6 +68,7 @@ namespace CenterLine {
         //KernelConverter::KernelConverter<K, InnerK, KernelConverter::NumberConverter<K::FT, InnerK::FT, _input_precision>> kernel_converter;
         KernelConverter::KernelConverter<K, InnerK, KernelConverter::NumberConverter<K::FT, InnerK::FT>> kernel_converter;
 
+        const Context _context;
         Polygon_with_holes_2 relative_poly;
         Vector_2 polygon_offset;
         std::vector<FT> point_contour_distance;
@@ -89,7 +91,7 @@ namespace CenterLine {
 
     public:
         // input_precision: ��to_double(K)ת��ΪGmpfrʱ�ľ���; inner_precision: �ڲ�����ʱ��Ĭ�Ͼ���
-        PolygonCenterLine()
+        PolygonCenterLine(const Context &context) : _context(context)
         {
             CGAL::Gmpfr::set_default_precision(256);
             CGAL::set_pretty_mode(std::cout);
@@ -232,7 +234,7 @@ namespace CenterLine {
 
         CGAL::Polygon_with_holes_2<InnerK> new_poly = kernel_converter.convert(relative_poly);
         // calculate with relative_poly
-        CenterLineSolver::CenterLineSolver<InnerK, CGAL::Polygon_with_holes_2<InnerK>, CGAL::Polygon_2<InnerK>> solver;
+        CenterLineSolver::CenterLineSolver<InnerK, CGAL::Polygon_with_holes_2<InnerK>, CGAL::Polygon_2<InnerK>> solver(_context);
         bool success = false;
         try {
             solver(new_poly);

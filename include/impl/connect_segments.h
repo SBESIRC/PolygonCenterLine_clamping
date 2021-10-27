@@ -166,6 +166,12 @@ namespace CenterLineSolver {
                         throw("repeated point");
                         //in_vectors[new_loc].insert(in_vectors[new_loc].end(), in_vectors[loc_id].begin(), in_vectors[loc_id].end());
                     }
+                    else if(!_context.prefer_ortho){
+                        PointData *new_point = new PointData(locations, loc_id, new_loc, point_data_pool.size());
+                        point_data_pool.push_back(new_point);
+                        in_vectors[loc_id].push_back(-base_v);
+                        in_vectors[new_loc].push_back(base_v);
+                    }
                     else if(in_vectors[new_loc].size() == 0){ // ��ص�����PointData�����Ǵ�
                         Vector_2 used_vector;
                         FT value = -1;

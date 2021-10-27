@@ -25,7 +25,9 @@ int main(int argc, char *argv[])
         sscanf(argv[3], "%d", &to);
         for(int i = from;i <= to;++i){
             sprintf(filename, argv[1], i);
-            PolygonCenterLineTest centerline(filename, i);
+            CenterLine::Context context;
+            context.prefer_ortho = false;
+            PolygonCenterLineTest centerline(filename, i, context);
             centerline.showCenterLine();
             //centerline.showUcsPartition();
             //centerline.showPartition(0);
@@ -33,7 +35,9 @@ int main(int argc, char *argv[])
     }
     else { // if(argc == 3) {
         sscanf(argv[2], "%lf", &R);
-        PolygonCenterLineTest centerline(argv[1], 0);
+        CenterLine::Context context;
+        context.prefer_ortho = false;
+        PolygonCenterLineTest centerline(argv[1], 0, context);
         centerline.showCenterLine();
         centerline.showUcsPartition();
         //centerline.showPartition(R);

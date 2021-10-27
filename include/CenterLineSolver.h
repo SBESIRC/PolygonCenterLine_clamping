@@ -15,6 +15,8 @@
 #include <boost/optional/optional_io.hpp>
 #include <CGAL/Straight_skeleton_builder_2.h>
 
+#include "CenterLineContext.h"
+
 namespace CenterLineSolver {
     static bool is_debugging = false;
     struct PairHash {
@@ -59,6 +61,7 @@ namespace CenterLineSolver {
                                               NOT_PARALLEL,
                                               TRIANGLE };
 
+        const CenterLine::Context _context;    
         const double CornerCosineThreshold = -0.5;
         const Poly_with_holes *origin_space;
         std::vector<PointData *> point_data_pool;
@@ -213,7 +216,7 @@ namespace CenterLineSolver {
         void process_event(const Event &event);
         void connect_segments();
         void operator()(const Poly_with_holes &polygon);
-        CenterLineSolver() { is_debugging = false; }
+        CenterLineSolver(const CenterLine::Context &context) : _context(context) { is_debugging = false; }
         ~CenterLineSolver(){
             for(auto ptr : point_data_pool) delete ptr;
         }

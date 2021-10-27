@@ -20,7 +20,8 @@ struct PolygonCenterLineTest{
 	std::string geojson, filename;
 	PolygonCenterLine centerline;
 
-    PolygonCenterLineTest(std::string fname, int id){
+    PolygonCenterLineTest(std::string fname, int id, CenterLine::Context context=CenterLine::Context())
+	: centerline(context){
 		std::cout << fname << std::endl;
 		std::ifstream in(fname);
 		if(!in.is_open()) throw("input file not found");
