@@ -265,16 +265,20 @@ namespace CenterLineSolver {
         // get the corresbonding line of every edges;
         // build point_data_pool and edge_data_pool at the same time;
 
-        SsBuilder ssb;
-        ssb.enter_contour(polygon.outer_boundary().vertices_begin(), polygon.outer_boundary().vertices_end());
-        for(auto hole = polygon.holes_begin();hole != polygon.holes_end();++hole)
-            ssb.enter_contour(hole->vertices_begin(), hole->vertices_end());
-        try{
-            skeleton = ssb.construct_skeleton();
-        }
-        catch(...){
-            std::cerr << "construct_skeleton exception ...\n";
-        }
+        int try_cnt = 0;
+        do{
+            try{
+                SsBuilder ssb;
+                ssb.enter_contour(polygon.outer_boundary().vertices_begin(), polygon.outer_boundary().vertices_end());
+                for(auto hole = polygon.holes_begin();hole != polygon.holes_end();++hole)
+                    ssb.enter_contour(hole->vertices_begin(), hole->vertices_end());
+                skeleton = ssb.construct_skeleton();
+            }
+            catch(...){
+                std::cerr << "construct_skeleton exception ...\n";
+            }
+            if(!skeleton) std::cout << "error:" << try_cnt << "\n" << polygon << std::endl;
+        } while(!skeleton && try_cnt++ < 32);
         if(!skeleton) throw("skeleton was not correctly constructed");
 
         std::unordered_map<int, int> index;
