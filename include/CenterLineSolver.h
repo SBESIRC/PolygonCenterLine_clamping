@@ -277,7 +277,7 @@ namespace CenterLineSolver {
             catch(...){
                 std::cerr << "construct_skeleton exception ...\n";
             }
-            if(!skeleton) std::cout << "error:" << try_cnt << "\n" << polygon << std::endl;
+            if(!skeleton) std::cerr << "error:" << try_cnt << "\n" << polygon << std::endl;
         } while(!skeleton && try_cnt++ < 32);
         if(!skeleton) throw("skeleton was not correctly constructed");
 
