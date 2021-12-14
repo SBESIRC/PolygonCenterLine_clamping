@@ -233,6 +233,25 @@ namespace CenterLineSolver {
         Location(Point_2 p, FT t) : point(p), time(t) {}
     };
 
+    namespace SEH{
+        using K = CGAL::Epick;
+        using Ss = CGAL::Straight_skeleton_2<K>;
+        using SsBuilderTraits = CGAL::Straight_skeleton_builder_traits_2<K>;
+        using SsBuilder = CGAL::Straight_skeleton_builder_2<SsBuilderTraits, Ss>;
+        static void func(SsBuilder &ssb, boost::shared_ptr<Ss> &skeleton){
+            skeleton = ssb.construct_skeleton();
+        }
+        static bool construct_skeleton(SsBuilder &ssb, boost::shared_ptr<Ss> &skeleton){
+            __try{
+                func(ssb, skeleton);
+            }
+            __except(1){
+                throw("construct_skeleton exception ...\n");
+                return true;
+            }
+            return false;
+        }
+    }
     template <typename K, class Poly_with_holes, class Poly>
     inline void CenterLineSolver<K, Poly_with_holes, Poly>::cut_edge(
         EdgeData *base, EdgeData *prev, EdgeData *next, int location,
@@ -266,19 +285,22 @@ namespace CenterLineSolver {
         // build point_data_pool and edge_data_pool at the same time;
 
         int try_cnt = 0;
+        bool valid = false;
         do{
+            valid = false;
             try{
                 SsBuilder ssb;
                 ssb.enter_contour(polygon.outer_boundary().vertices_begin(), polygon.outer_boundary().vertices_end());
                 for(auto hole = polygon.holes_begin();hole != polygon.holes_end();++hole)
                     ssb.enter_contour(hole->vertices_begin(), hole->vertices_end());
-                skeleton = ssb.construct_skeleton();
+                //skeleton = ssb.construct_skeleton();
+                valid = SEH::construct_skeleton(ssb, skeleton);
             }
             catch(...){
                 std::cerr << "construct_skeleton exception ...\n";
             }
             if(!skeleton) std::cerr << "error:" << try_cnt << "\n" << polygon << std::endl;
-        } while(!skeleton && try_cnt++ < 32);
+        } while(!skeleton && valid && try_cnt++ < 32);
         if(!skeleton) throw("skeleton was not correctly constructed");
 
         std::unordered_map<int, int> index;

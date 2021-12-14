@@ -20,7 +20,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 add_library(PolygonCenterLine STATIC ${lib_src} ${header_files} ${header_impl})
 
-target_compile_options(PolygonCenterLine PUBLIC /EHa)
+#target_compile_options(PolygonCenterLine PUBLIC /EHa)
 #target_include_directories(PolygonCenterLine PUBLIC include PUBLIC "./libraries")
 target_include_directories(PolygonCenterLine PUBLIC include)
 target_link_libraries(PolygonCenterLine PUBLIC CGAL::CGAL PUBLIC jsoncpp_lib jsoncpp_object)
