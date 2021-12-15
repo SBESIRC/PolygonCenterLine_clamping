@@ -241,15 +241,17 @@ namespace CenterLineSolver {
         static void func(SsBuilder &ssb, boost::shared_ptr<Ss> &skeleton){
             skeleton = ssb.construct_skeleton();
         }
-        static bool construct_skeleton(SsBuilder &ssb, boost::shared_ptr<Ss> &skeleton){
+        static void construct_skeleton(SsBuilder &ssb, boost::shared_ptr<Ss> &skeleton){
+            // Due to unknown CGAL issues, construct_skeleton() throws Exception Access Violation
+            // This exception won't be caught by C++ standard Exception Handling (try...catch....)
+            // To workaround this SEH exception, we wrap around the exception with MS extension __try...__except
+            // When the SEH exception is caught, the std::exception is rethrew
             __try{
                 func(ssb, skeleton);
             }
             __except(1){
                 throw("construct_skeleton exception ...\n");
-                return true;
             }
-            return false;
         }
     }
     template <typename K, class Poly_with_holes, class Poly>
@@ -284,24 +286,11 @@ namespace CenterLineSolver {
         // get the corresbonding line of every edges;
         // build point_data_pool and edge_data_pool at the same time;
 
-        int try_cnt = 0;
-        bool valid = false;
-        do{
-            valid = false;
-            try{
-                SsBuilder ssb;
-                ssb.enter_contour(polygon.outer_boundary().vertices_begin(), polygon.outer_boundary().vertices_end());
-                for(auto hole = polygon.holes_begin();hole != polygon.holes_end();++hole)
-                    ssb.enter_contour(hole->vertices_begin(), hole->vertices_end());
-                //skeleton = ssb.construct_skeleton();
-                valid = SEH::construct_skeleton(ssb, skeleton);
-            }
-            catch(...){
-                std::cerr << "construct_skeleton exception ...\n";
-            }
-            if(!skeleton) std::cerr << "error:" << try_cnt << "\n" << polygon << std::endl;
-        } while(!skeleton && valid && try_cnt++ < 32);
-        if(!skeleton) throw("skeleton was not correctly constructed");
+        SsBuilder ssb;
+        ssb.enter_contour(polygon.outer_boundary().vertices_begin(), polygon.outer_boundary().vertices_end());
+        for (auto hole = polygon.holes_begin(); hole != polygon.holes_end(); ++hole)
+            ssb.enter_contour(hole->vertices_begin(), hole->vertices_end());
+        SEH::construct_skeleton(ssb, skeleton);
 
         std::unordered_map<int, int> index;
         std::unordered_set<std::pair<int, int>, PairHash> edge_set;

@@ -220,33 +220,18 @@ namespace CenterLine {
         Polygon_2 outer = space.outer_boundary();
         std::vector<Polygon_2> holes(space.holes_begin(), space.holes_end());
         polygon_offset = Vector_2(outer.left_vertex()->x(), outer.bottom_vertex()->y());
-        if(outer.vertices_begin()->x() == outer.left_vertex()->x() && outer.vertices_begin()->y() == outer.top_vertex()->y()){
-            // vertices_begin is the left_top vertex;
-            std::vector<Point_2> pts;
-            pts.reserve(outer.size());
-            auto it = outer.vertices_begin(); ++it;
-            for(;it != outer.vertices_end();++it) pts.push_back(*it);
-            pts.push_back(*outer.vertices_begin());
-            outer.clear();
-            for(auto it = pts.begin();it != pts.end();++it){
-                std::cout << "p=" << (*it - polygon_offset) << std::endl;
-                outer.push_back(*it - polygon_offset);
-            }
+        for (auto it = outer.vertices_begin(); it != outer.vertices_end(); ++it) {
+            std::cout << "p=" << (*it - polygon_offset) << std::endl;
+            outer.set(it, *it - polygon_offset);
         }
-        else{
-            for (auto it = outer.vertices_begin(); it != outer.vertices_end(); ++it) {
-                std::cout << "p=" << (*it - polygon_offset) << std::endl;
-                outer.set(it, *it - polygon_offset);
-            }
-        }
-        for (auto it = holes.begin(); it != holes.end();++it)
+        for (auto it = holes.begin(); it != holes.end(); ++it) {
             for (auto i = it->vertices_begin(); i != it->vertices_end(); ++i) {
                 std::cout << "p=" << (*i - polygon_offset) << std::endl;
                 it->set(i, *i - polygon_offset);
             }
+        }
 
         relative_poly = Polygon_with_holes_2(outer, holes.begin(), holes.end());
-
         CGAL::Polygon_with_holes_2<InnerK> new_poly = kernel_converter.convert(relative_poly);
         // calculate with relative_poly
         CenterLineSolver::CenterLineSolver<InnerK, CGAL::Polygon_with_holes_2<InnerK>, CGAL::Polygon_2<InnerK>> solver(_context);
@@ -257,6 +242,7 @@ namespace CenterLine {
         }
         catch (const char *str){
             std::cerr << "error = " << str << std::endl;
+            return false;
         }
 
         relative_segments.clear(); relative_sub_segments.clear(); segment_dis.clear();
