@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
         for(int i = from;i <= to;++i){
             sprintf(filename, argv[1], i);
             CenterLine::Context context;
-            context.prefer_ortho = false;
+            context.prefer_ortho = true;
             PolygonCenterLineTest centerline(filename, i, context);
             centerline.showCenterLine();
             //centerline.showUcsPartition();
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     else { // if(argc == 3) {
         sscanf(argv[2], "%lf", &R);
         CenterLine::Context context;
-        context.prefer_ortho = false;
+        context.prefer_ortho = true;
         PolygonCenterLineTest centerline(argv[1], 0, context);
         centerline.showCenterLine();
         centerline.showUcsPartition();
